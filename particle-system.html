@@ -21,14 +21,16 @@
 
         #video {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 20px;
+            left: 20px;
+            width: 320px;
+            height: 180px;
             object-fit: cover;
-            z-index: 0;
+            z-index: 10;
             transform: scaleX(-1);
-            filter: brightness(0.5);
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
         }
 
         #canvas-container {
@@ -379,44 +381,53 @@
             });
         }
 
+        // 优化：照片光晕和丝滑出场
         function updateFloatingImages() {
             if (!imageGroup) return;
-
             const t = time * 0.5;
 
             floatingImages.forEach((sprite, i) => {
                 let targetPos = new THREE.Vector3();
-                let targetScale = sprite.userData.isSelected ? 1.5 : 0.4;
+                // 选中时放大，且有光晕(通过缩放模拟或shader)
+                let targetScale = sprite.userData.isSelected ? 2.5 : 0.0; // 默认隐藏或极小，出现在粒子中
 
+                // 让照片混在粒子中
                 if (currentModel === 'tree') {
-                    // 螺旋排列逻辑
-                    const layerProgress = i / floatingImages.length;
-                    const angle = sprite.userData.angleOffset + t * 0.5;
-                    const radius = 2.0 - layerProgress * 1.0;
-                    const y = -1.5 + layerProgress * 3.5;
-
-                    targetPos.set(
-                        Math.cos(angle) * radius,
-                        y,
-                        Math.sin(angle) * radius
-                    );
+                    // 挂在树上的位置
+                    const angle = sprite.userData.angleOffset + t * 0.2;
+                    const r = 1.5 - (i / floatingImages.length) * 0.8;
+                    targetPos.set(Math.cos(angle) * r, 1.0 - (i / floatingImages.length) * 2.5, Math.sin(angle) * r);
+                    if (!sprite.userData.isSelected) targetScale = 0.3; // 挂件大小
+                } else if (sprite.userData.isSelected) {
+                    targetPos.set(0, 0, 1.0); // 居中
                 } else {
-                    // 散落逻辑
-                    const angle = sprite.userData.angleOffset + i;
-                    const radius = 3.5;
-                    targetPos.set(
-                        Math.cos(angle) * radius,
-                        Math.sin(t * 0.3 + i) * 2.5,
-                        Math.sin(angle) * radius * 0.6
-                    );
+                    // 隐藏在粒子云中
+                    const pIdx = Math.floor(i * (CONFIG.particleCount / floatingImages.length));
+                    const positions = particles.geometry.attributes.position.array;
+                    if (positions && positions.length > pIdx * 3 + 2) {
+                        targetPos.set(
+                            positions[pIdx * 3],
+                            positions[pIdx * 3 + 1],
+                            positions[pIdx * 3 + 2]
+                        );
+                    }
+                    targetScale = 0.0; // 还没展示时隐藏
                 }
 
-                sprite.position.lerp(targetPos, 0.05);
+                // Spring physics / Smooth Lerp
+                sprite.position.lerp(targetPos, 0.08);
 
-                // 平滑缩放
                 const currentS = sprite.scale.x;
                 const newS = currentS + (targetScale - currentS) * 0.1;
                 sprite.scale.set(newS, newS * 1.5, 1);
+
+                // 简单的光晕效果：调整材质opacity和color
+                if (sprite.userData.isSelected) {
+                    sprite.material.opacity = 1.0;
+                    // 可以在sprite后面加一个发光的mesh来实现halo，这里简化为自身变亮
+                } else {
+                    sprite.material.opacity = 0.8;
+                }
             });
         }
 
@@ -447,115 +458,269 @@
             window.addEventListener('resize', onWindowResize);
         }
 
+        // 生成粒子纹理图集
+        function createTextureAtlas() {
+            const canvas = document.createElement('canvas');
+            const size = 1024; // 256px per cell * 4
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, size, size);
+
+            const cellSize = 256;
+            const icons = [
+                '⚪', // 0: Default Circle (will be rendered as a glowing dot)
+                '🎁', // 1: Gift
+                '🧦', // 2: Sock
+                '🔔', // 3: Bell
+                '👔', // 4: Tie
+                '🔺', // 5: Triangle
+                '🎄', // 6: Tree
+                '🎅', // 7: Santa
+                '🪙', // 8: Coin
+                '⭐', // 9: Star
+                '❄️', // 10: Snowflake
+                '❤️', // 11: Heart
+                '⛄', // 12: Snowman
+                '✨', // 13: Sparkles
+                '🔴', // 14: Sphere
+                '🟩'  // 15: Cube
+            ];
+
+            ctx.font = '180px apple color emoji, segoe ui emoji, notocolor emoji';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            for (let i = 0; i < 16; i++) {
+                const x = (i % 4) * cellSize;
+                const y = Math.floor(i / 4) * cellSize;
+
+                // Draw icon
+                if (i === 0) {
+                    // Draw a nice gradient circle for default
+                    const cx = x + cellSize / 2;
+                    const cy = y + cellSize / 2;
+                    const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, 110);
+                    grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+                    grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.8)');
+                    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 110, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    const icon = icons[i] || '❓';
+                    ctx.fillText(icon, x + cellSize / 2, y + cellSize / 2 + 10);
+                }
+            }
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.flipY = false;
+            return texture;
+        }
+
+        // 顶点着色器
+        const vertexShader = `
+            attribute float size;
+            attribute vec3 customColor;
+            attribute float shapeIndex;
+            varying vec3 vColor;
+            varying float vShapeIndex;
+            varying vec3 vPosition;
+            varying float vAlpha;
+            uniform float uTime;
+            uniform float uScale;
+            uniform float uHandDepth;
+
+            void main() {
+                vColor = customColor;
+                vShapeIndex = shapeIndex;
+                vPosition = position;
+                
+                // 丝滑的呼吸效果
+                float pulse = 1.0 + 0.1 * sin(uTime * 2.0 + position.x * 2.0);
+                
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                gl_Position = projectionMatrix * mvPosition;
+                
+                // 大小随深度和呼吸变化
+                float depthScale = smoothstep(5.0, 1.0, -mvPosition.z); // 近大远小优化
+                gl_PointSize = size * uScale * uHandDepth * pulse * (400.0 / -mvPosition.z);
+                
+                // 边缘渐隐
+                vAlpha = min(1.0, 1.5 - length(position.xy) / 8.0);
+            }
+        `;
+
+        // 片元着色器 - 支持图集和反光
+        const fragmentShader = `
+            uniform sampler2D uTexture;
+            uniform float uTime;
+            varying vec3 vColor;
+            varying float vShapeIndex;
+            varying float vAlpha;
+
+            void main() {
+                // 计算当前粒子在图集中的UV
+                float index = floor(vShapeIndex + 0.5);
+                float col = mod(index, 4.0);
+                float row = 3.0 - floor(index / 4.0); // flipY handled in JS, but grid is top-down usually
+                
+                vec2 uv = gl_PointCoord;
+                uv.x = (uv.x + col) / 4.0;
+                uv.y = (uv.y + row) / 4.0;
+
+                vec4 texColor = texture2D(uTexture, uv);
+                
+                if (texColor.a < 0.1) discard;
+
+                // 反光效果 (Sheen)
+                float sheen = 0.0;
+                if (index > 0.5) { // 对Emoji添加流光
+                     float sheenPos = (gl_PointCoord.x + gl_PointCoord.y) * 3.0 - uTime * 3.0;
+                     sheen = max(0.0, sin(sheenPos)) * 0.3;
+                }
+
+                gl_FragColor = vec4(vColor + sheen, texColor.a * vAlpha * 0.95);
+            }
+        `;
+
         function createParticleSystem() {
             const geometry = new THREE.BufferGeometry();
             targetPositions = Models[currentModel](CONFIG.particleCount);
-            currentPositions = new Float32Array(targetPositions);
-            geometry.setAttribute('position', new THREE.BufferAttribute(currentPositions, 3));
+            currentPositions = new Float32Array(targetPositions); // Start positions
+
+            // 初始化 buffer
+            geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(CONFIG.particleCount * 3), 3));
+            geometry.getAttribute('position').set(currentPositions); // Set initial
 
             particleColors = new Float32Array(CONFIG.particleCount * 3);
+            const sizes = new Float32Array(CONFIG.particleCount);
+            const shapeIndices = new Float32Array(CONFIG.particleCount);
+
             for (let i = 0; i < CONFIG.particleCount; i++) {
                 particleColors[i * 3] = CONFIG.normalColor.r;
                 particleColors[i * 3 + 1] = CONFIG.normalColor.g;
                 particleColors[i * 3 + 2] = CONFIG.normalColor.b;
-            }
-            geometry.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
+                sizes[i] = 0.05 + Math.random() * 0.05; // 基础大小
 
-            const material = new THREE.PointsMaterial({
-                size: 0.05,
-                vertexColors: true,
+                // 随机分配形状，圆形(0)概率最高
+                const r = Math.random();
+                if (r < 0.6) shapeIndices[i] = 0; // 圆形
+                else if (r < 0.65) shapeIndices[i] = 1; // 礼物
+                else if (r < 0.68) shapeIndices[i] = 2; // 袜子
+                else if (r < 0.71) shapeIndices[i] = 3; // 铃铛
+                else if (r < 0.74) shapeIndices[i] = 4; // 领带
+                else if (r < 0.77) shapeIndices[i] = 5; // 三角形
+                else if (r < 0.80) shapeIndices[i] = 7; // 圣诞老人
+                else if (r < 0.83) shapeIndices[i] = 8; // 金币
+                else if (r < 0.86) shapeIndices[i] = 10; // 雪花
+                else if (r < 0.89) shapeIndices[i] = 12; // 雪人
+                else if (r < 0.92) shapeIndices[i] = 13; // 闪光
+                else shapeIndices[i] = 9; // 星星
+            }
+
+            // 强制设置树顶星星 (如果需要特定ID)
+            // 这里我们将在 update 中动态调整树顶粒子的形状
+
+            geometry.setAttribute('customColor', new THREE.BufferAttribute(particleColors, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+            geometry.setAttribute('shapeIndex', new THREE.BufferAttribute(shapeIndices, 1));
+
+            const material = new THREE.ShaderMaterial({
+                uniforms: {
+                    uTime: { value: 0 },
+                    uScale: { value: 1.0 },
+                    uHandDepth: { value: 1.0 },
+                    uTexture: { value: createTextureAtlas() }
+                },
+                vertexShader: vertexShader,
+                fragmentShader: fragmentShader,
                 transparent: true,
-                opacity: 0.95,
-                sizeAttenuation: true,
+                depthWrite: false,
                 blending: THREE.AdditiveBlending
             });
 
             particles = new THREE.Points(geometry, material);
             scene.add(particles);
+
+            // 确保文字粒子模式初始位置正确
+            // ... (positions are already in targetPositions)
         }
 
         function updateParticlePositions() {
             const positions = particles.geometry.attributes.position.array;
-            const colors = particles.geometry.attributes.color.array;
+            const colors = particles.geometry.attributes.customColor.array; // Shader uses customColor
+            const shapes = particles.geometry.attributes.shapeIndex.array;
+            const sizes = particles.geometry.attributes.size.array;
+
             const isTextMode = (currentModel === 'gesture1' || currentModel === 'gesture2' || currentModel === 'gesture3');
+
+            // 丝滑插值因子
+            const lerpFactor = 0.08;
 
             for (let i = 0; i < positions.length; i += 3) {
                 let targetX = targetPositions[i] * currentScale;
                 let targetY = targetPositions[i + 1] * currentScale;
                 let targetZ = targetPositions[i + 2] * currentScale;
 
-                positions[i] += (targetX - positions[i]) * CONFIG.transitionSpeed;
-                positions[i + 1] += (targetY - positions[i + 1]) * CONFIG.transitionSpeed;
-                positions[i + 2] += (targetZ - positions[i + 2]) * CONFIG.transitionSpeed;
+                // 树顶星星特殊处理 (最上面的粒子)
+                if (currentModel === 'tree' && i === positions.length - 3) { // Use last particle as star
+                    targetX = 0; targetY = 2.6; targetZ = 0; // Tree Top Position
+                    shapes[i / 3] = 9; // Star shape
+                    sizes[i / 3] = 0.5; // Big star
+                    colors[i] = 1.0; colors[i + 1] = 0.9; colors[i + 2] = 0.2; // Gold
+                }
+
+                positions[i] += (targetX - positions[i]) * lerpFactor;
+                positions[i + 1] += (targetY - positions[i + 1]) * lerpFactor;
+                positions[i + 2] += (targetZ - positions[i + 2]) * lerpFactor;
             }
             particles.geometry.attributes.position.needsUpdate = true;
+            particles.geometry.attributes.shapeIndex.needsUpdate = true;
+            particles.geometry.attributes.size.needsUpdate = true;
 
+            // Update Uniforms
+            particles.material.uniforms.uTime.value = time;
+            particles.material.uniforms.uHandDepth.value = handDepth * (isRomanticMode ? 1.1 : 1.0);
+
+            // Color Logic (Optimized)
             if (currentModel === 'tree') {
-                const particleCount = CONFIG.particleCount;
-                const trunkEnd = Math.floor(particleCount * 0.04);
-                const mainTreeEnd = trunkEnd + Math.floor(particleCount * 0.45);
-                const ornamentEnd = mainTreeEnd + Math.floor(particleCount * 0.12);
-                const lightEnd = ornamentEnd + Math.floor(particleCount * 0.08);
-                const coinEnd = lightEnd + Math.floor(particleCount * 0.20);
+                const pCount = CONFIG.particleCount;
+                // Simple gradient logic based on index for simplicity & performance
+                for (let i = 0; i < pCount; i++) {
+                    if (i === pCount - 1) continue; // Skip star
 
-                for (let i = 0; i < particleCount; i++) {
-                    let targetColor;
-                    if (i < trunkEnd) {
-                        targetColor = CONFIG.treeBrownColor;
-                    } else if (i < mainTreeEnd) {
-                        targetColor = CONFIG.treeGreenColor;
-                    } else if (i < ornamentEnd) {
-                        targetColor = (i % 2 === 0) ? CONFIG.treeRedColor : CONFIG.treeSilverColor;
-                    } else if (i < lightEnd) {
-                        const colorIndex = Math.floor((i + time * 10) % 5);
-                        if (colorIndex === 0) targetColor = CONFIG.treeRedColor;
-                        else if (colorIndex === 1) targetColor = CONFIG.treeGreenColor;
-                        else if (colorIndex === 2) targetColor = new THREE.Color('#3b82f6');
-                        else if (colorIndex === 3) targetColor = CONFIG.treeGoldColor;
-                        else targetColor = CONFIG.treeSilverColor;
-                    } else if (i < coinEnd) {
-                        const shimmer = (Math.sin(time * 8 + i * 0.1) + 1) / 2;
-                        const goldBase = CONFIG.coinGoldColor.clone();
-                        const goldBright = new THREE.Color('#ffed4e');
-                        targetColor = goldBase.clone().lerp(goldBright, shimmer * 0.6);
-                    } else {
-                        const sparkle = (Math.sin(time * 15 + i * 0.05) + 1) / 2;
-                        targetColor = CONFIG.treeGoldColor.clone().lerp(new THREE.Color('#fff9e6'), sparkle * 0.8);
+                    let targetColor = CONFIG.treeGreenColor;
+                    if (shapes[i] === 1 || shapes[i] === 7) targetColor = CONFIG.treeRedColor; // Gift/Santa
+                    else if (shapes[i] === 8 || shapes[i] === 3) targetColor = CONFIG.coinGoldColor; // Coin/Bell
+                    else if (shapes[i] === 2) targetColor = CONFIG.treeSilverColor; // Sock
+
+                    if (shapes[i] !== 0 && shapes[i] !== 6) { // Special items should pop
+                        // Slight flash
+                        targetColor = targetColor.clone().lerp(new THREE.Color(1, 1, 1), 0.2 * Math.sin(time * 5 + i));
                     }
-                    colors[i * 3] += (targetColor.r - colors[i * 3]) * 0.1;
-                    colors[i * 3 + 1] += (targetColor.g - colors[i * 3 + 1]) * 0.1;
-                    colors[i * 3 + 2] += (targetColor.b - colors[i * 3 + 2]) * 0.1;
+
+                    // Trunk logic (bottom particles roughly) - simplified for stability
+                    if (targetPositions[i * 3 + 1] < -1.5 && Math.abs(targetPositions[i * 3]) < 0.5) {
+                        targetColor = CONFIG.treeBrownColor;
+                        shapes[i] = 0; // Force trunk to dots
+                    }
+
+                    colors[i * 3] += (targetColor.r - colors[i * 3]) * 0.05;
+                    colors[i * 3 + 1] += (targetColor.g - colors[i * 3 + 1]) * 0.05;
+                    colors[i * 3 + 2] += (targetColor.b - colors[i * 3 + 2]) * 0.05;
                 }
-                particles.geometry.attributes.color.needsUpdate = true;
             } else {
                 let targetColor = CONFIG.normalColor;
-                if (currentModel === 'heart' || currentModel === 'gesture1') {
-                    targetColor = CONFIG.romanticColor;
-                }
+                if (currentModel === 'heart' || currentModel === 'gesture1') targetColor = CONFIG.romanticColor;
+
                 for (let i = 0; i < CONFIG.particleCount; i++) {
                     colors[i * 3] += (targetColor.r - colors[i * 3]) * 0.05;
                     colors[i * 3 + 1] += (targetColor.g - colors[i * 3 + 1]) * 0.05;
                     colors[i * 3 + 2] += (targetColor.b - colors[i * 3 + 2]) * 0.05;
                 }
-                particles.geometry.attributes.color.needsUpdate = true;
             }
-
-            // 问题2解决：所有模型都应用深度缩放
-            if (isRomanticMode) {
-                if (currentModel === 'tree') {
-                    const pulse = 1 + Math.sin(time * 2.5) * 0.06;
-                    particles.scale.setScalar(pulse * handDepth);
-                    particles.material.opacity = 0.92 + Math.sin(time * 6) * 0.08;
-                } else if (isTextMode) {
-                    // 文字不再跟随手势移动，固定在屏幕中心\n                particles.rotation.y = 0;\n                particles.rotation.x = 0;\n                particles.position.x += (0 - particles.position.x) * 0.1;\n                particles.position.y += (0 - particles.position.y) * 0.1;\n                particles.position.z = 0;\n                    particles.scale.setScalar(pulse * handDepth);
-                    particles.material.opacity = 0.85 + Math.sin(time * 10) * 0.15;
-                }
-            } else {
-                particles.scale.setScalar(handDepth);
-                particles.material.opacity = 0.95;
-            }
-
-            particles.material.size = 0.05 * handDepth;
+            particles.geometry.attributes.customColor.needsUpdate = true;
         }
 
         function changeModel(modelName) {
@@ -625,13 +790,6 @@
                     Math.pow(thumbTip.y - pinkyTip.y, 2)
                 );
 
-                // 问题3解决：手必须足够大才识别，避免误判
-                const isHandSizeSufficient = handWidth > 0.12;
-                if (!isHandSizeSufficient) {
-                    updateStatus('🔒 保持当前状态 (手太小/太远)', false);
-                    return;
-                }
-
                 targetDepth = Math.max(0.5, Math.min(2.0, handWidth * 4));
                 handDepth += (targetDepth - handDepth) * 0.1;
 
@@ -666,99 +824,113 @@
                     });
                 }
 
-                // 问题1解决：改进手势识别
-                const thumbIndexDist = Math.sqrt(
-                    Math.pow(thumbTip.x - indexTip.x, 2) +
-                    Math.pow(thumbTip.y - indexTip.y, 2)
-                );
+                // 问题1解决：改进手势识别 - 使用距离而非单纯坐标，更稳健
+                const dist = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+                const wrist = landmarks[0];
 
-                const thumbCurled = thumbTip.y > thumbIp.y - 0.02;
-                const isPinch = thumbIndexDist < 0.08 && indexTip.y < landmarks[6].y;
+                // 使用 handWidth 作为基准尺度 (handWidth = distance(thumbTip, pinkyTip))
+                // 注意：handWidth 会随着手势变化（特别是握拳），所以用手掌尺度更稳定
+                // 使用 Wrist(0) 到 MiddleMCP(9) 的距离作为基准尺度
+                const palmScale = dist(landmarks[0], landmarks[9]);
+
+                // 简单的手指伸展检测：指尖到手腕距离 > 指关节到手腕距离 * 阈值
+                const isExtended = (tipIdx, pipIdx) => dist(landmarks[tipIdx], wrist) > dist(landmarks[pipIdx], wrist) * 1.05; // 稍微放宽一点阈值
+
+                // 拇指伸展检测:
+                // 1. 拇指尖(4) 到 小指根(17) 的距离足够大 (相对于手掌)
+                // 2. 拇指尖(4) 到 食指根(5) 的距离足够大 (避免贴在食指上)
+                const isThumbExtended = dist(landmarks[4], landmarks[17]) > palmScale * 1.2 && dist(landmarks[4], landmarks[5]) > palmScale * 0.3;
+
+                const isIndexExt = isExtended(8, 6);
+                const isMiddleExt = isExtended(12, 10);
+                const isRingExt = isExtended(16, 14);
+                const isPinkyExt = isExtended(20, 18);
+
+                const extendedCount = [isIndexExt, isMiddleExt, isRingExt, isPinkyExt].filter(Boolean).length;
+
+                // 捏合检测 - 距离阈值基于手掌尺度
+                const pinchDist = dist(landmarks[4], landmarks[8]);
+                const isPinch = pinchDist < palmScale * 0.25;
 
                 // 检查是否在交互图片
                 let isImageInteraction = false;
                 if (interactingImage && isPinch) {
                     interactingImage.userData.isSelected = true;
-                    isImageInteraction = true;
                 }
-
-                const otherTips = [12, 16, 20];
-                const otherPips = [10, 14, 18];
-                let otherFingersUpCount = 0;
-                for (let i = 0; i < 3; i++) {
-                    if (landmarks[otherTips[i]].y < landmarks[otherPips[i]].y - 0.02) {
-                        otherFingersUpCount++;
-                    }
-                }
-
-                const allTips = [8, 12, 16, 20];
-                const allPips = [6, 10, 14, 18];
-                let totalExtended = 0;
-                for (let i = 0; i < allTips.length; i++) {
-                    if (landmarks[allTips[i]].y < landmarks[allPips[i]].y - 0.02) {
-                        totalExtended++;
-                    }
-                }
-
-                const thumbMcp = landmarks[2];
-                const thumbDistance = Math.abs(thumbTip.x - thumbMcp.x);
-                const thumbExtended = thumbDistance > 0.08;
 
                 let detectedGesture = 'idle';
-                let statusText = "";
+                let statusText = "🖐️ 散开";
                 let newRomanticMode = isRomanticMode;
-
-                // 手指状态检测
-                const isIndexUp = landmarks[8].y < landmarks[6].y - 0.02;
-                const isMiddleUp = landmarks[12].y < landmarks[10].y - 0.02;
-                const isRingUp = landmarks[16].y < landmarks[14].y - 0.02;
-                const isPinkyUp = landmarks[20].y < landmarks[18].y - 0.02;
-
-                const isLoveSign = thumbExtended && isIndexUp && !isMiddleUp && !isRingUp && isPinkyUp;
-                const isVictory = !thumbExtended && isIndexUp && isMiddleUp && !isRingUp && !isPinkyUp;
 
                 if (isImageInteraction) {
                     detectedGesture = currentModel;
                     statusText = "🖼️ 查看照片";
                     newRomanticMode = isRomanticMode;
-                } else if (isPinch) {
-                    if (otherFingersUpCount === 0) {
+                }
+                // 宽松的弯曲检测：允许手指稍微放松一点也能被视为弯曲
+                // 如果指尖距离手腕 仅比 指关节距离手腕 多一点点(或者更少)，就算弯曲
+                // 之前的 Extended 是 > 1.05，这里 Curled 只要 < 1.35 就行，给一个较大的宽容度
+                const isCurled = (tipIdx, pipIdx) => dist(landmarks[tipIdx], wrist) < dist(landmarks[pipIdx], wrist) * 1.35;
+
+                // 捏合时的状态区分
+                if (isPinch) {
+                    if (isMiddleExt && isRingExt && isPinkyExt) {
+                        detectedGesture = 'gesture3'; // OK手势 -> 大头菜菜
+                        newRomanticMode = false;
+                        statusText = "👌 大头菜菜";
+                    } else if (isCurled(12, 10) && isCurled(16, 14) && isCurled(20, 18)) {
+                        // 只有当其他手指都比较明确弯曲时才算爱心，避免误触
+                        detectedGesture = 'heart'; // 比心
+                        newRomanticMode = true;
+                        statusText = "❤️ 爱心";
+                    } else if (!isMiddleExt && !isRingExt && !isPinkyExt) {
+                        // 备用判定：如果都不算伸直
                         detectedGesture = 'heart';
                         newRomanticMode = true;
                         statusText = "❤️ 爱心";
-                    } else if (otherFingersUpCount >= 2) {
-                        detectedGesture = 'gesture3';
-                        newRomanticMode = false;
-                        statusText = "👌 大头菜菜";
                     } else {
+                        // 模糊状态，保持上一次
                         detectedGesture = lastDetectedGesture;
                         statusText = "调整中...";
                     }
                 } else {
-                    if (totalExtended === 0 && thumbCurled) {
+                    // 非捏合状态的手势判断
+
+                    // 优先判断 ILY (喜欢你) 手势，因为它的特征很明显且容易被误判为 OpenHand
+                    // 逻辑：拇指+食指+小指伸直，且中指+无名指是弯曲的(宽容度高)
+                    const isLoveSign = isThumbExtended && isIndexExt && isPinkyExt && isCurled(12, 10) && isCurled(16, 14);
+
+                    // 剪刀手：食指+中指伸直，无名指+小指弯曲
+                    const isVictory = isIndexExt && isMiddleExt && isCurled(16, 14) && isCurled(20, 18);
+
+                    if (extendedCount === 0 && !isThumbExtended) {
+                        // 握拳 -> 圣诞树
                         detectedGesture = 'tree';
                         newRomanticMode = true;
                         statusText = "✊ 🎄💰 圣诞树";
                     } else if (isLoveSign) {
+                        // ILY手势 -> 喜欢你
                         detectedGesture = 'gesture1';
                         newRomanticMode = true;
                         statusText = "🤟 喜欢你";
-                    } else if (isVictory || (totalExtended === 2 && !thumbExtended)) {
+                    } else if (isVictory) {
+                        // 剪刀手 -> 我
                         detectedGesture = 'gesture2';
                         newRomanticMode = false;
                         statusText = "✌️ 我";
-                    } else if (totalExtended === 5 || (totalExtended === 4 && thumbExtended)) {
+                    } else if (extendedCount >= 4) {
+                        // 张开手 -> 散开
                         detectedGesture = 'idle';
                         newRomanticMode = false;
                         statusText = "🖐️ 散开";
                     } else {
-                        // 单指指向等过渡动作保持上一状态，避免误触
+                        // 其他过渡状态保持不变
                         detectedGesture = lastDetectedGesture;
                         statusText = "🖐️ " + (lastDetectedGesture === 'idle' ? "散开" : "保持...");
                     }
                 }
 
-                // 问题3解决：手势稳定性检测
+                // 手势防抖逻辑
                 if (detectedGesture === lastDetectedGesture) {
                     gestureStableCounter++;
                 } else {
