@@ -244,7 +244,7 @@
                     const r = 0.12 + Math.random() * 0.08;
                     positions.push(r * Math.cos(angle), h - 2.0, r * Math.sin(angle));
                 }
-                const mainTreeCount = Math.floor(count * 0.45);
+                const mainTreeCount = Math.floor(count * 0.53); // 增加主树干比例，减少树顶的拥挤感
                 for (let i = 0; i < mainTreeCount; i++) {
                     const h = Math.random();
                     const layer = Math.floor(h * 7);
@@ -300,18 +300,23 @@
                         coinZ + (Math.random() - 0.5) * 0.3
                     );
                 }
-                const starCount = count - trunkCount - mainTreeCount - ornamentCount - lightCount - coinCount;
-                for (let i = 0; i < starCount; i++) {
-                    const progress = i / starCount;
-                    const starAngle = progress * Math.PI * 2 * 3;
-                    const inSpike = ((starAngle / (Math.PI * 2)) * 5) % 1;
-                    let r = inSpike < 0.5 ? 0.35 + Math.random() * 0.25 : 0.12 + Math.random() * 0.12;
-                    const theta = starAngle + (Math.random() - 0.5) * 0.3;
-                    const verticalSpread = Math.random() * 0.15;
+                const tipCount = count - trunkCount - mainTreeCount - ornamentCount - lightCount - coinCount;
+                for (let i = 0; i < tipCount; i++) {
+                    const h = Math.random();
+                    // 风格统一：不再是完美的圆锥，而是带有螺旋和随机抖动的自然树尖
+                    // 模仿树身的生长逻辑，螺旋上升
+                    const y = 2.4 + h * 0.6; // 延伸到 3.0
+
+                    // 半径衰减，减小半径让其更清爽，不那么"满"
+                    const baseR = (1 - h) * 0.22;
+                    const r = baseR * (0.8 + Math.random() * 0.4); // 随机抖动
+
+                    const angle = h * Math.PI * 10 + Math.random() * Math.PI * 2;
+
                     positions.push(
-                        r * Math.cos(theta) * 0.7,
-                        2.4 + verticalSpread,
-                        r * Math.sin(theta) * 0.7
+                        r * Math.cos(angle),
+                        y,
+                        r * Math.sin(angle)
                     );
                 }
                 return new Float32Array(positions);
@@ -382,6 +387,7 @@
         }
 
         // 优化：照片光晕和丝滑出场
+        // 优化：照片光晕和丝滑出场
         function updateFloatingImages() {
             if (!imageGroup) return;
             const t = time * 0.5;
@@ -397,7 +403,10 @@
                     const angle = sprite.userData.angleOffset + t * 0.2;
                     const r = 1.5 - (i / floatingImages.length) * 0.8;
                     targetPos.set(Math.cos(angle) * r, 1.0 - (i / floatingImages.length) * 2.5, Math.sin(angle) * r);
-                    if (!sprite.userData.isSelected) targetScale = 0.3; // 挂件大小
+
+                    // 问题3解决：聚成圣诞树时，将图片再缩小一点 (0.18 -> 0.12)
+                    if (!sprite.userData.isSelected) targetScale = 0.12;
+
                 } else if (sprite.userData.isSelected) {
                     targetPos.set(0, 0, 1.0); // 居中
                 } else {
@@ -424,7 +433,6 @@
                 // 简单的光晕效果：调整材质opacity和color
                 if (sprite.userData.isSelected) {
                     sprite.material.opacity = 1.0;
-                    // 可以在sprite后面加一个发光的mesh来实现halo，这里简化为自身变亮
                 } else {
                     sprite.material.opacity = 0.8;
                 }
@@ -449,11 +457,11 @@
 
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambientLight);
-            // 创建光标
-            const cursorGeometry = new THREE.RingGeometry(0.08, 0.1, 32);
-            const cursorMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
-            cursorMesh = new THREE.Mesh(cursorGeometry, cursorMaterial);
-            scene.add(cursorMesh);
+            // 创建光标 - 问题2解决：去除屏幕中间的圆圈
+            // const cursorGeometry = new THREE.RingGeometry(0.08, 0.1, 32);
+            // const cursorMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+            // cursorMesh = new THREE.Mesh(cursorGeometry, cursorMaterial);
+            // scene.add(cursorMesh);
 
             window.addEventListener('resize', onWindowResize);
         }
@@ -469,7 +477,7 @@
 
             const cellSize = 256;
             const icons = [
-                '⚪', // 0: Default Circle (will be rendered as a glowing dot)
+                '⚪', // 0: Default
                 '🎁', // 1: Gift
                 '🧦', // 2: Sock
                 '🔔', // 3: Bell
@@ -478,7 +486,7 @@
                 '🎄', // 6: Tree
                 '🎅', // 7: Santa
                 '🪙', // 8: Coin
-                '⭐', // 9: Star
+                '⭐', // 9: Star (Custom Draw)
                 '❄️', // 10: Snowflake
                 '❤️', // 11: Heart
                 '⛄', // 12: Snowman
@@ -494,12 +502,12 @@
             for (let i = 0; i < 16; i++) {
                 const x = (i % 4) * cellSize;
                 const y = Math.floor(i / 4) * cellSize;
+                const cx = x + cellSize / 2;
+                const cy = y + cellSize / 2;
 
                 // Draw icon
                 if (i === 0) {
                     // Draw a nice gradient circle for default
-                    const cx = x + cellSize / 2;
-                    const cy = y + cellSize / 2;
                     const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, 110);
                     grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
                     grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.8)');
@@ -508,9 +516,51 @@
                     ctx.beginPath();
                     ctx.arc(cx, cy, 110, 0, Math.PI * 2);
                     ctx.fill();
+                } else if (i === 9) {
+                    // 问题1解决：手绘五角星
+                    // 用户反馈：要标准的五角星，不要太胖像五边形
+                    ctx.save();
+                    ctx.translate(cx, cy);
+                    ctx.beginPath();
+                    const outerRadius = 110;
+                    const innerRadius = 45;  // 调回标准比例 (approx 0.4 of outer)，变尖
+
+                    // 旋转修正，让一个角垂直向上
+                    ctx.rotate(-Math.PI / 2); // -90度，角朝上
+
+                    for (let n = 0; n < 5; n++) {
+                        const angleOuter = (n * Math.PI * 2) / 5;
+                        const angleInner = ((n + 0.5) * Math.PI * 2) / 5;
+
+                        // Outer Point
+                        if (n === 0) ctx.moveTo(Math.cos(angleOuter) * outerRadius, Math.sin(angleOuter) * outerRadius);
+                        else ctx.lineTo(Math.cos(angleOuter) * outerRadius, Math.sin(angleOuter) * outerRadius);
+
+                        // Inner Point
+                        ctx.lineTo(Math.cos(angleInner) * innerRadius, Math.sin(angleInner) * innerRadius);
+                    }
+                    ctx.closePath();
+
+                    // 柔和的暖色渐变
+                    const starGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, 100);
+                    starGrad.addColorStop(0, '#fffbe6'); // 中心甚至有点白
+                    starGrad.addColorStop(0.4, '#ffd700'); // 金色
+                    starGrad.addColorStop(1, '#ff8c00');   // 边缘橙色
+
+                    ctx.fillStyle = starGrad;
+
+                    // 圆角连接，保持一点点圆润感，但不至于变成球
+                    ctx.lineJoin = 'round';
+                    ctx.lineCap = 'round';
+                    ctx.lineWidth = 8; // 线条减细一点，避免让角显得太钝
+                    ctx.strokeStyle = '#ffd700';
+                    ctx.stroke();
+                    ctx.fill();
+
+                    ctx.restore();
                 } else {
                     const icon = icons[i] || '❓';
-                    ctx.fillText(icon, x + cellSize / 2, y + cellSize / 2 + 10);
+                    ctx.fillText(icon, cx, cy + 10);
                 }
             }
             const texture = new THREE.CanvasTexture(canvas);
@@ -560,27 +610,64 @@
             varying float vAlpha;
 
             void main() {
-                // 计算当前粒子在图集中的UV
                 float index = floor(vShapeIndex + 0.5);
+                vec2 uv = gl_PointCoord;
+                
+                // 星星(Index 9)自转逻辑：与圣诞树反方向旋转
+                // 圣诞树是绕Y轴转，星星作为2D贴图，我们让它进行2D自转来实现视觉上的旋转感
+                if (abs(index - 9.0) < 0.1) {
+                     vec2 center = vec2(0.5);
+                     // 树是顺时针(正向angle)，星星就逆时针(负向angle)
+                     // 调整速度让它看起来优雅
+                     float angle = uTime * 1.0; 
+                     float s = sin(angle);
+                     float c = cos(angle);
+                     vec2 centered = uv - center;
+                     // 旋转矩阵
+                     uv = vec2(
+                         centered.x * c - centered.y * s,
+                         centered.x * s + centered.y * c
+                     ) + center;
+                     
+                     // 旋转后如果超出[0,1]范围则丢弃，防止显示出邻近的图标
+                     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) discard;
+                }
+
+                // 计算当前粒子在图集中的UV
                 float col = mod(index, 4.0);
                 float row = 3.0 - floor(index / 4.0); // flipY handled in JS, but grid is top-down usually
                 
-                vec2 uv = gl_PointCoord;
-                uv.x = (uv.x + col) / 4.0;
-                uv.y = (uv.y + row) / 4.0;
+                // 映射到图集坐标
+                vec2 finalUV = uv;
+                finalUV.x = (finalUV.x + col) / 4.0;
+                finalUV.y = (finalUV.y + row) / 4.0;
 
-                vec4 texColor = texture2D(uTexture, uv);
+                vec4 texColor = texture2D(uTexture, finalUV);
                 
                 if (texColor.a < 0.1) discard;
 
                 // 反光效果 (Sheen)
                 float sheen = 0.0;
                 if (index > 0.5) { // 对Emoji添加流光
-                     float sheenPos = (gl_PointCoord.x + gl_PointCoord.y) * 3.0 - uTime * 3.0;
+                     // 星星的流光也跟随旋转稍微变动一下
+                     float sheenPos = (uv.x + uv.y) * 3.0 - uTime * 3.0;
                      sheen = max(0.0, sin(sheenPos)) * 0.3;
                 }
 
-                gl_FragColor = vec4(vColor + sheen, texColor.a * vAlpha * 0.95);
+                // 星星(index 9)发光特效
+                vec3 finalColor = vColor + sheen;
+                float alpha = texColor.a * vAlpha * 0.95;
+
+                if (abs(index - 9.0) < 0.1) {
+                    // 星星发光增强
+                    float glow = 0.5 + 0.5 * sin(uTime * 3.0); // 强烈的呼吸光
+                    finalColor += vec3(0.5, 0.4, 0.1) * glow; // 金色光晕叠加
+                    
+                    // 核心更亮
+                    finalColor *= 1.5;
+                }
+
+                gl_FragColor = vec4(finalColor, alpha);
             }
         `;
 
@@ -620,7 +707,8 @@
             }
 
             // 强制设置树顶星星 (如果需要特定ID)
-            // 这里我们将在 update 中动态调整树顶粒子的形状
+            // 这里我们将在 update 中动态调整树顶粒子的形状，但先预设一个初始值
+            // 将最后一个粒子作为星星
 
             geometry.setAttribute('customColor', new THREE.BufferAttribute(particleColors, 3));
             geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
@@ -637,10 +725,15 @@
                 fragmentShader: fragmentShader,
                 transparent: true,
                 depthWrite: false,
-                blending: THREE.AdditiveBlending
+                blending: THREE.AdditiveBlending,
+                // 解决星星可能被截断的问题，尝试禁用剔除或者不完全依赖 FrustumCulling (尽管 Points 默认就有)
             });
 
             particles = new THREE.Points(geometry, material);
+            // 调整相机位置或者模型整体位置，确保星星可见
+            // 或者在模型生成时调整高度。这里我们微调一下相机
+            camera.position.y = 0.5; // 稍微抬高相机
+
             scene.add(particles);
 
             // 确保文字粒子模式初始位置正确
@@ -663,13 +756,7 @@
                 let targetY = targetPositions[i + 1] * currentScale;
                 let targetZ = targetPositions[i + 2] * currentScale;
 
-                // 树顶星星特殊处理 (最上面的粒子)
-                if (currentModel === 'tree' && i === positions.length - 3) { // Use last particle as star
-                    targetX = 0; targetY = 2.6; targetZ = 0; // Tree Top Position
-                    shapes[i / 3] = 9; // Star shape
-                    sizes[i / 3] = 0.5; // Big star
-                    colors[i] = 1.0; colors[i + 1] = 0.9; colors[i + 2] = 0.2; // Gold
-                }
+
 
                 positions[i] += (targetX - positions[i]) * lerpFactor;
                 positions[i + 1] += (targetY - positions[i + 1]) * lerpFactor;
@@ -688,7 +775,7 @@
                 const pCount = CONFIG.particleCount;
                 // Simple gradient logic based on index for simplicity & performance
                 for (let i = 0; i < pCount; i++) {
-                    if (i === pCount - 1) continue; // Skip star
+                    // Removed obsolete star skip
 
                     let targetColor = CONFIG.treeGreenColor;
                     if (shapes[i] === 1 || shapes[i] === 7) targetColor = CONFIG.treeRedColor; // Gift/Santa
@@ -705,6 +792,8 @@
                         targetColor = CONFIG.treeBrownColor;
                         shapes[i] = 0; // Force trunk to dots
                     }
+
+                    // Tree Tip logic is removed to allow random particles
 
                     colors[i * 3] += (targetColor.r - colors[i * 3]) * 0.05;
                     colors[i * 3 + 1] += (targetColor.g - colors[i * 3 + 1]) * 0.05;
@@ -817,7 +906,8 @@
                             Math.pow(sprite.position.x - cursorX, 2) +
                             Math.pow(sprite.position.y - cursorY, 2)
                         );
-                        if (dist < 0.5 && dist < minDist) {
+                        // 问题4解决：现在很容易误触，缩小判定范围 (0.5 -> 0.3)
+                        if (dist < 0.3 && dist < minDist) {
                             minDist = dist;
                             interactingImage = sprite;
                         }
