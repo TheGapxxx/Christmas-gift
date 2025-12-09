@@ -898,7 +898,14 @@
                 if (floatingImages) {
                     let minDist = 100;
                     floatingImages.forEach(sprite => {
-                        sprite.userData.isSelected = false; // Reset
+                        // 交互优化：只有在树模式下（照片挂在树上）或者照片已经被选中时，才允许交互
+                        // 防止在做其他手势（如爱心）时误触隐藏在空中的照片
+                        if (currentModel !== 'tree' && !sprite.userData.isSelected) {
+                            sprite.userData.isSelected = false; // 确保隐藏状态下不被选中
+                            return;
+                        }
+
+                        sprite.userData.isSelected = false; // Reset to check again
                         const dist = Math.sqrt(
                             Math.pow(sprite.position.x - cursorX, 2) +
                             Math.pow(sprite.position.y - cursorY, 2)
