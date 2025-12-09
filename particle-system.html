@@ -983,9 +983,9 @@
                 } else {
                     // 非捏合状态的手势判断
 
-                    // 优先判断 ILY (喜欢你) 手势，因为它的特征很明显且容易被误判为 OpenHand
-                    // 逻辑：拇指+食指+小指伸直，且中指+无名指是弯曲的(宽容度高)
-                    const isLoveSign = isThumbExtended && isIndexExt && isPinkyExt && isCurled(12, 10) && isCurled(16, 14);
+                    // 单指 (1) -> 喜欢你
+                    // 逻辑：食指伸直，其他手指弯曲
+                    const isOneFinger = isIndexExt && !isMiddleExt && !isRingExt && !isPinkyExt;
 
                     // 剪刀手：食指+中指伸直，无名指+小指弯曲
                     const isVictory = isIndexExt && isMiddleExt && isCurled(16, 14) && isCurled(20, 18);
@@ -995,11 +995,11 @@
                         detectedGesture = 'tree';
                         newRomanticMode = true;
                         statusText = "✊ 🎄💰 圣诞树";
-                    } else if (isLoveSign) {
-                        // ILY手势 -> 喜欢你
+                    } else if (isOneFinger) {
+                        // 单指 -> 喜欢你
                         detectedGesture = 'gesture1';
                         newRomanticMode = true;
-                        statusText = "🤟 喜欢你";
+                        statusText = "☝️ 喜欢你";
                     } else if (isVictory) {
                         // 剪刀手 -> 我
                         detectedGesture = 'gesture2';
