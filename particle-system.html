@@ -470,8 +470,10 @@
                 let targetScale = 0.0;
 
                 if (isDualHandMode) {
+                    // Check if any focus mode is active (one image zoomed)
+                    let hasZoomed = floatingImages.some(img => img.userData.isZoomed);
+
                     // --- 设计师优化：酷炫弯曲画廊 ---
-                    // 不再是平铺，而是半圆环绕 (Cover Flow 灵感)
                     const radius = 4.0; // 巨大的圆环半径，产生微弧度
                     const angleSpacing = 0.15; // 角度间距 (弧度)
 
@@ -480,10 +482,6 @@
                     const theta = relIdx * angleSpacing; // 偏角
 
                     // 基础位置：圆弧排列
-                    // Center (theta=0) 在 (0, 0, 2.0)
-                    // P = (R * sin(theta), 0, 2.0 - R * (1 - cos(theta)))
-                    // 这样中心点 Z 最靠前，两侧 Z 向后弯曲
-
                     const baseX = radius * Math.sin(theta);
                     const baseZ = 2.0 - radius * (1 - Math.cos(theta));
 
@@ -494,52 +492,59 @@
                     // 状态优先级：Zoomed (握拳) > Selected (悬停) > Normal
 
                     if (sprite.userData.isZoomed) {
-                        // 【Hero Mode：握拳展示】
-                        // 飞出列队，来到镜头极近处 C位
-                        targetPos.set(0, 0, 2.6);
+                        // 【Hero Focus Mode：全屏展示】
+                        // 位置：屏幕正中央
+                        // Camera Y=0.5 (set in createParticleSystem), so Target Y should be 0.5 to be centered.
+                        targetPos.set(0, 0.5, 3.0);
                         targetScale = 0.55;
 
                         // 酷炫特效：
-                        // 1. 呼吸律动 (Heartbeat)
-                        const pulse = Math.sin(time * 4) * 0.03;
-                        targetScale += pulse;
-
-                        // 2. 悬浮微动 (Levitation)
-                        targetPos.y += Math.sin(time * 1.5) * 0.05;
-                        targetPos.x += Math.cos(time * 1.2) * 0.03;
+                        // 1. 呼吸律动 (加大力度)
+                        targetScale += Math.sin(time * 3) * 0.03;
+                        // 2. 微微摇摆 (Z-Roll)
+                        sprite.material.rotation = Math.sin(time * 2.0) * 0.05;
 
                         // 3. 高光时刻
-                        sprite.material.color.setHex(0xffffff); // 纯白最亮
+                        sprite.material.color.setHex(0xffffff);
                         sprite.material.opacity = 1.0;
+
+                    } else if (hasZoomed) {
+                        // 【Background Mode：当有主角时，我是背景】
+                        // 极度淡化，让出舞台
+                        targetScale = 0.15;
+                        sprite.material.opacity = 0.1; // 几乎看不见
+                        sprite.material.color.setHex(0x555555); // 暗掉
+                        // 保持在原位，但稍微退后
+                        targetPos.z -= 0.5;
+                        sprite.material.rotation = 0;
 
                     } else if (sprite.userData.isSelected) {
                         // 【Hover Mode：悬停选中】
-                        // 从圆弧中"弹"出来
-                        targetPos.z += 0.4; // 向前突进
-                        targetPos.y = 0.15; // 稍微抬高
-                        targetScale = 0.38; // 变大
+                        sprite.material.rotation = 0; // Reset
 
-                        // 视觉：暖色光晕感
-                        sprite.material.color.setHex(0xfffae6); // 暖白黄金色
+                        // 弹出来
+                        targetPos.z += 0.5;
+                        targetPos.y = 0.2;
+                        targetScale = 0.45; // 变大
+
+                        // 暖白光晕
+                        sprite.material.color.setHex(0xfffae6);
                         sprite.material.opacity = 0.95;
 
-                        // 微微晃动，表示"选我"
-                        targetScale += Math.sin(time * 8) * 0.01;
+                        // 微微晃动
+                        targetPos.x += Math.sin(time * 10) * 0.02;
 
                     } else {
-                        // 【Passive Mode：背景列表】
-                        // 距离中心越远，越透明，如有迷雾
+                        // 【Passive Mode：普通列表】
+                        sprite.material.rotation = 0;
+
                         const distFactor = Math.abs(relIdx);
-
-                        // 视觉：冷色调退后，营造景深感
-                        sprite.material.color.setHex(0x99aabb); // 蓝灰色调，更有科技感
-
-                        // 渐变透明：中心附近的清楚，边缘的透明
-                        const alpha = Math.max(0.1, 0.6 - distFactor * 0.1);
+                        sprite.material.color.setHex(0x99aabb); // 蓝灰色调
+                        // 渐变透明
+                        const alpha = Math.max(0.05, 0.6 - distFactor * 0.1);
                         sprite.material.opacity = alpha;
 
-                        // 稍微压扁一点 Z 轴，增强纵深
-                        targetPos.z -= distFactor * 0.1;
+                        targetPos.z -= distFactor * 0.15;
                     }
 
                     // 只要在双手模式，就忽略下面的通用逻辑
