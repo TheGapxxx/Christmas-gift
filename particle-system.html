@@ -119,6 +119,32 @@
             color: rgba(255, 255, 255, 0.9);
             font-weight: 500;
         }
+
+        .upload-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            z-index: 100;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .upload-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            color: #fff;
+        }
     </style>
 </head>
 
@@ -127,6 +153,11 @@
         <div class="loading-spinner"></div>
         <div class="loading-text">正在启动AR模式...</div>
     </div>
+    <input type="file" id="img-upload" multiple accept="image/*" style="display: none;"
+        onchange="handleImageUpload(this)">
+    <button class="upload-btn" onclick="document.getElementById('img-upload').click()">
+        <span>📂</span> 换照片
+    </button>
 
     <video id="video" autoplay playsinline muted></video>
     <div id="canvas-container"></div>
@@ -331,7 +362,11 @@
         let isRomanticMode = false;
         let time = 0;
 
+        let isDualHandMode = false;
+        let galleryScroll = 0; // 画廊滚动偏移量
+        let lastSelectedIdx = -1; // 用于记录右手握拳锁定的选中项
         let handPosition = { x: 0, y: 0, z: 0 };
+        let cursorTarget = { x: 0, y: 0 }; // 新增：专门用于光标和交互的目标位置
         let handVelocity = { x: 0, y: 0 };
         let prevHandPosition = { x: 0, y: 0 };
 
@@ -345,7 +380,7 @@
 
         let particleColors;
 
-        const IMAGE_URLS = [
+        let imageUrls = [
             'https://picsum.photos/id/237/200/300',
             'https://picsum.photos/id/10/200/300',
             'https://picsum.photos/id/1015/200/300',
@@ -363,7 +398,7 @@
 
             const loader = new THREE.TextureLoader();
 
-            IMAGE_URLS.forEach((url, i) => {
+            imageUrls.forEach((url, i) => {
                 const texture = loader.load(url);
                 const material = new THREE.SpriteMaterial({
                     map: texture,
@@ -374,13 +409,40 @@
                 sprite.scale.set(0.4, 0.6, 1);
                 sprite.userData = {
                     id: i,
-                    angleOffset: (i / IMAGE_URLS.length) * Math.PI * 2,
+                    angleOffset: (i / imageUrls.length) * Math.PI * 2,
                     isSelected: false,
+                    isZoomed: false, // New property for zoomed state
                     targetScale: 0.4
                 };
                 imageGroup.add(sprite);
                 floatingImages.push(sprite);
             });
+
+            // Default select middle
+            galleryScroll = Math.floor(imageUrls.length / 2);
+        }
+
+        function handleImageUpload(input) {
+            if (input.files && input.files.length > 0) {
+                // 清理旧资源
+                imageUrls.forEach(url => {
+                    if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+                });
+
+                // 生成新链接
+                imageUrls = Array.from(input.files).map(file => URL.createObjectURL(file));
+
+                // 重建场景
+                if (imageGroup) {
+                    scene.remove(imageGroup);
+                    floatingImages = [];
+                }
+                createFloatingImages();
+
+                // 提示
+                updateStatus(`🖼️ 已加载 ${input.files.length} 张新照片`, true);
+                setTimeout(() => updateStatus('🎥 AR模式就绪', true), 2000);
+            }
         }
 
         // 优化：照片光晕和丝滑出场
@@ -389,35 +451,142 @@
             if (!imageGroup) return;
             const t = time * 0.5;
 
+            // 如果没有双手模式（手离开），重置一些状态以防残留巨大图片
+            // 或者我们可以保持"最后一次查看"的状态？
+            // 用户反馈：屏幕中没有手时，图片变得巨大。这可能是因为 isDualHandMode 变为 false，
+            // 导致代码走到了 else 分支，而 sprite.userData.isZoomed/isSelected 还是 true。
+            // 之前的 else 分支对 isSelected 处理是 targetScale = 2.5 (巨大)。
+
+            // 修复：如果没有手检测到 (或者单手)，强制取消双手的 Zoom 状态，避免意外大图
+            // 除非我们想设计成"放手后保持展示"。但用户说的是"变得巨大"，说明是不预期的。
+            if (!isDualHandMode) {
+                // 稍微清理一下 Zoom 状态，避免切回单手/无手时突然变大
+                // 不过我们还是要支持单手模式？用户之前说过去除单手选取。
+                // 所以如果没有双手，应该就只是展示树，不应该有选中的大图。
+            }
+
             floatingImages.forEach((sprite, i) => {
                 let targetPos = new THREE.Vector3();
-                // 选中时放大，且有光晕(通过缩放模拟或shader)
-                let targetScale = sprite.userData.isSelected ? 2.5 : 0.0; // 默认隐藏或极小，出现在粒子中
+                let targetScale = 0.0;
 
-                // 让照片混在粒子中
-                if (currentModel === 'tree') {
-                    // 挂在树上的位置
-                    const angle = sprite.userData.angleOffset + t * 0.2;
-                    const r = 1.5 - (i / floatingImages.length) * 0.8;
-                    targetPos.set(Math.cos(angle) * r, 1.0 - (i / floatingImages.length) * 2.5, Math.sin(angle) * r);
+                if (isDualHandMode) {
+                    // --- 设计师优化：酷炫弯曲画廊 ---
+                    // 不再是平铺，而是半圆环绕 (Cover Flow 灵感)
+                    const radius = 4.0; // 巨大的圆环半径，产生微弧度
+                    const angleSpacing = 0.15; // 角度间距 (弧度)
 
-                    // 问题3解决：聚成圣诞树时，将图片再缩小一点 (0.18 -> 0.12)
-                    if (!sprite.userData.isSelected) targetScale = 0.12;
+                    // 计算当前图片相对于中心的偏移量 (浮点数索引)
+                    const relIdx = i - galleryScroll;
+                    const theta = relIdx * angleSpacing; // 偏角
 
-                } else if (sprite.userData.isSelected) {
-                    targetPos.set(0, 0, 1.0); // 居中
-                } else {
-                    // 隐藏在粒子云中
-                    const pIdx = Math.floor(i * (CONFIG.particleCount / floatingImages.length));
-                    const positions = particles.geometry.attributes.position.array;
-                    if (positions && positions.length > pIdx * 3 + 2) {
-                        targetPos.set(
-                            positions[pIdx * 3],
-                            positions[pIdx * 3 + 1],
-                            positions[pIdx * 3 + 2]
-                        );
+                    // 基础位置：圆弧排列
+                    // Center (theta=0) 在 (0, 0, 2.0)
+                    // P = (R * sin(theta), 0, 2.0 - R * (1 - cos(theta)))
+                    // 这样中心点 Z 最靠前，两侧 Z 向后弯曲
+
+                    const baseX = radius * Math.sin(theta);
+                    const baseZ = 2.0 - radius * (1 - Math.cos(theta));
+
+                    // 默认状态（未选中）：
+                    targetPos.set(baseX, 0, baseZ);
+                    targetScale = 0.22;
+
+                    // 状态优先级：Zoomed (握拳) > Selected (悬停) > Normal
+
+                    if (sprite.userData.isZoomed) {
+                        // 【Hero Mode：握拳展示】
+                        // 飞出列队，来到镜头极近处 C位
+                        targetPos.set(0, 0, 2.6);
+                        targetScale = 0.55;
+
+                        // 酷炫特效：
+                        // 1. 呼吸律动 (Heartbeat)
+                        const pulse = Math.sin(time * 4) * 0.03;
+                        targetScale += pulse;
+
+                        // 2. 悬浮微动 (Levitation)
+                        targetPos.y += Math.sin(time * 1.5) * 0.05;
+                        targetPos.x += Math.cos(time * 1.2) * 0.03;
+
+                        // 3. 高光时刻
+                        sprite.material.color.setHex(0xffffff); // 纯白最亮
+                        sprite.material.opacity = 1.0;
+
+                    } else if (sprite.userData.isSelected) {
+                        // 【Hover Mode：悬停选中】
+                        // 从圆弧中"弹"出来
+                        targetPos.z += 0.4; // 向前突进
+                        targetPos.y = 0.15; // 稍微抬高
+                        targetScale = 0.38; // 变大
+
+                        // 视觉：暖色光晕感
+                        sprite.material.color.setHex(0xfffae6); // 暖白黄金色
+                        sprite.material.opacity = 0.95;
+
+                        // 微微晃动，表示"选我"
+                        targetScale += Math.sin(time * 8) * 0.01;
+
+                    } else {
+                        // 【Passive Mode：背景列表】
+                        // 距离中心越远，越透明，如有迷雾
+                        const distFactor = Math.abs(relIdx);
+
+                        // 视觉：冷色调退后，营造景深感
+                        sprite.material.color.setHex(0x99aabb); // 蓝灰色调，更有科技感
+
+                        // 渐变透明：中心附近的清楚，边缘的透明
+                        const alpha = Math.max(0.1, 0.6 - distFactor * 0.1);
+                        sprite.material.opacity = alpha;
+
+                        // 稍微压扁一点 Z 轴，增强纵深
+                        targetPos.z -= distFactor * 0.1;
                     }
-                    targetScale = 0.0; // 还没展示时隐藏
+
+                    // 只要在双手模式，就忽略下面的通用逻辑
+                } else {
+                    // --- 无手 / 单手模式 / 手离开 ---
+                    // 之前的问题是：这里判断 sprite.userData.isSelected 还是 true，于是设为 2.5
+                    // 修复：在非双手模式下，我们强制不认 isZoomed/isSelected (或者重置它们)
+                    // 或者，只允许树上的小图展示。
+
+                    if (currentModel === 'tree') {
+                        // 挂在树上的位置 - 修正为螺旋上升/下降结构
+                        const count = floatingImages.length;
+                        const p = i / count; // 0 to 1
+
+                        // 螺旋分布：
+                        // Y: 从下 (-1.5) 到 上 (2.2) 还是从上到下？
+                        // 通常图片点缀在树身，从上到下分布比较自然
+                        const y = 2.0 - p * 3.5; // 2.0 -> -1.5
+
+                        // Radius: 线性增加，形成圆锥
+                        // Top(y=2.0) -> r small (0.3), Bottom(y=-1.5) -> r large (1.6)
+                        const r = 0.3 + p * 1.3;
+
+                        // Angle: 螺旋缠绕，多绕几圈
+                        const spirals = 3; // 绕3圈
+                        const angle = sprite.userData.angleOffset + p * Math.PI * 2 * spirals + t * 0.2;
+
+                        targetPos.set(Math.cos(angle) * r, y, Math.sin(angle) * r);
+
+                        targetScale = 0.12; // 树上默认大小
+
+                        // 颜色复原
+                        sprite.material.color.setHex(0xffffff);
+                        sprite.material.opacity = 0.9;
+                    } else {
+                        // 其他模式隐藏
+                        const pIdx = Math.floor(i * (CONFIG.particleCount / floatingImages.length));
+                        const positions = particles.geometry.attributes.position.array;
+                        if (positions && positions.length > pIdx * 3 + 2) {
+                            targetPos.set(
+                                positions[pIdx * 3],
+                                positions[pIdx * 3 + 1],
+                                positions[pIdx * 3 + 2]
+                            );
+                        }
+                        targetScale = 0.0;
+                    }
                 }
 
                 // Spring physics / Smooth Lerp
@@ -428,10 +597,19 @@
                 sprite.scale.set(newS, newS * 1.5, 1);
 
                 // 简单的光晕效果：调整材质opacity和color
-                if (sprite.userData.isSelected) {
-                    sprite.material.opacity = 1.0;
-                } else {
-                    sprite.material.opacity = 0.8;
+                // This block is now mostly redundant due to the new dual-hand logic,
+                // but keeping it for single-hand/tree mode if needed.
+                if (!isDualHandMode) {
+                    if (sprite.userData.isSelected) {
+                        sprite.material.opacity = 1.0;
+                        sprite.material.color.setHex(0xffffff);
+                    } else if (sprite.userData.isHovered) {
+                        sprite.material.opacity = 0.95;
+                        sprite.material.color.setHex(0xffffd0); // 微微泛黄提示
+                    } else {
+                        sprite.material.opacity = 0.8;
+                        sprite.material.color.setHex(0xffffff);
+                    }
                 }
             });
         }
@@ -830,7 +1008,7 @@
             });
 
             hands.setOptions({
-                maxNumHands: 1,
+                maxNumHands: 2, // Enable 2 hands
                 modelComplexity: 1,
                 minDetectionConfidence: 0.7,
                 minTrackingConfidence: 0.7
@@ -862,7 +1040,138 @@
         }
 
         function onHandsResults(results) {
+            // Helper for distance
+            const dist = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                // Identify Hands
+                let leftHand = null;
+                let rightHand = null;
+
+                // MediaPipe MultiHandedness: label 'Left' means user's left hand usually.
+                // However, visual mirroring might affect perception.
+                // Let's rely on standard logic: Label 'Left' -> Left Hand, 'Right' -> Right Hand.
+                for (let i = 0; i < results.multiHandedness.length; i++) {
+                    const label = results.multiHandedness[i].label;
+                    const landmarks = results.multiHandLandmarks[i];
+                    if (label === 'Right') rightHand = landmarks;
+                    if (label === 'Left') leftHand = landmarks;
+                }
+
+                // --- Scenario 1: Dual Hand Gallery Mode ---
+                // Condition: Both hands detected AND current model is Tree (or we allow switching to it)
+                // Actually user said "When hands open, start selection". 
+                // Let's be strict: If 2 hands are visible, we enter "Photo Selection Mode" overlay.
+
+                if (leftHand && rightHand) {
+                    isDualHandMode = true;
+                    // 双手模式
+                    let statusText = "👐 双手模式 | ↔️ 控制手距以滑动 | ✊ 握拳展示";
+
+                    const lPalm = leftHand[9];
+                    const rPalm = rightHand[9];
+
+                    // 1. Left Hand: Speed Control (Based on distance from Right Hand)
+                    // Logic: Expand -> Scroll Left / Shrink -> Scroll Right
+                    const separation = Math.abs(lPalm.x - rPalm.x);
+
+                    let speed = 0;
+                    const minSep = 0.25;
+                    const maxSep = 0.55;
+
+                    // Left Hand Fist Detection for Acceleration
+                    const lWrist = leftHand[0];
+                    const distCheck = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+                    const isLExtended = (tipIdx, pipIdx) => distCheck(leftHand[tipIdx], lWrist) > distCheck(leftHand[pipIdx], lWrist) * 1.1;
+
+                    let lFingersOpen = 0;
+                    if (isLExtended(8, 6)) lFingersOpen++;
+                    if (isLExtended(12, 10)) lFingersOpen++;
+                    if (isLExtended(16, 14)) lFingersOpen++;
+                    if (isLExtended(20, 18)) lFingersOpen++;
+
+                    // If Left Fist (<=1 finger open), Turbo Boost!
+                    const isLeftFist = lFingersOpen <= 1;
+                    const speedMultiplier = isLeftFist ? 4.0 : 1.0; // 4倍速
+
+                    if (isLeftFist) statusText = "⚡ 左手握拳加速中! ⚡";
+
+                    if (separation < minSep) {
+                        // Hands close
+                        speed = 0.04 * speedMultiplier * ((minSep - separation) / 0.15);
+                    } else if (separation > maxSep) {
+                        // Hands far
+                        speed = -0.04 * speedMultiplier * ((separation - maxSep) / 0.15);
+                    }
+
+                    galleryScroll += speed;
+
+                    // Soft Clamp
+                    const maxScroll = floatingImages.length - 1;
+                    if (galleryScroll < -0.5) galleryScroll = -0.5;
+                    if (galleryScroll > maxScroll + 0.5) galleryScroll = maxScroll + 0.5;
+
+                    // 2. Right Hand: Selection & Zoom
+                    const rX = -(rPalm.x - 0.5) * 4;
+                    // Detect Right Fist
+                    const rWrist = rightHand[0];
+                    const dist = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+                    const isRExtended = (tipIdx, pipIdx) => dist(rightHand[tipIdx], rWrist) > dist(rightHand[pipIdx], rWrist) * 1.1;
+
+                    let rFingersOpen = 0;
+                    if (isRExtended(8, 6)) rFingersOpen++;
+                    if (isRExtended(12, 10)) rFingersOpen++;
+                    if (isRExtended(16, 14)) rFingersOpen++;
+                    if (isRExtended(20, 18)) rFingersOpen++;
+                    const isRightFist = rFingersOpen <= 1;
+
+                    let selectedIdx = -1;
+
+                    if (isRightFist && lastSelectedIdx !== -1) {
+                        selectedIdx = lastSelectedIdx;
+                        statusText = "✨ 正在展示图片 ✨";
+                    } else {
+                        const spacing = 0.5;
+                        let bestDist = 100;
+                        floatingImages.forEach((img, i) => {
+                            const imgX = (i - galleryScroll) * spacing;
+                            const dist = Math.abs(imgX - rX);
+                            if (dist < 0.4 && dist < bestDist) {
+                                bestDist = dist;
+                                selectedIdx = i;
+                            }
+                        });
+
+                        if (selectedIdx !== -1) lastSelectedIdx = selectedIdx;
+                        else lastSelectedIdx = -1;
+                    }
+
+                    // Apply States
+                    floatingImages.forEach((img, i) => {
+                        img.userData.isSelected = (i === selectedIdx);
+                        img.userData.isZoomed = (i === selectedIdx && isRightFist);
+                    });
+
+                    if (currentModel !== 'tree') changeModel('tree');
+
+                    updateStatus(statusText, true);
+                    return; // Skip single hand logic
+                }
+
+                // Reset Dual Mode states if hands lost
+                isDualHandMode = false;
+                if (floatingImages) {
+                    floatingImages.forEach(img => {
+                        img.userData.isSelected = false;
+                        img.userData.isZoomed = false;
+                    });
+                }
+
+                isDualHandMode = false; // Reset if single hand
+
+
+                // --- Scenario 2: Single Hand Logic (Fallback/Original) ---
+                // Use the first detected hand (or whichever is dominant/detected).
                 const landmarks = results.multiHandLandmarks[0];
 
                 const palm = landmarks[9];
@@ -879,60 +1188,35 @@
                 targetDepth = Math.max(0.5, Math.min(2.0, handWidth * 4));
                 handDepth += (targetDepth - handDepth) * 0.1;
 
-                handVelocity.x = newX - prevHandPosition.x;
-                handVelocity.y = newY - prevHandPosition.y;
-                prevHandPosition.x = newX;
-                prevHandPosition.y = newY;
-                handPosition.x = newX;
                 handPosition.y = newY;
 
-                const indexTip = landmarks[8];
-                const thumbIp = landmarks[3];
+                // Keep cursorTarget synced with palm by default
+                cursorTarget.x = newX;
+                cursorTarget.y = newY;
 
-                // --- 图片交互逻辑 ---
-                // 使用手掌中心作为光标位置，更稳定
-                const cursorX = handPosition.x;
-                const cursorY = handPosition.y;
+                const indexTip = landmarks[8];
+                const thumbTip4 = landmarks[4];
+
+                // Pinch Center
+                const pinchCenterX = (indexTip.x + thumbTip4.x) / 2;
+                const pinchCenterY = (indexTip.y + thumbTip4.y) / 2;
+                const interactionX = -(pinchCenterX - 0.5) * 4;
+                const interactionY = -(pinchCenterY - 0.5) * 3;
+                // Update cursor target
+                cursorTarget.x = interactionX;
+                cursorTarget.y = interactionY;
+
+                // --- Single Hand Image Interaction Removed ---
+                // User requested to remove single hand selection.
+                // We keep 'interactingImage' variable as null to avoid breaking later checks if any,
+                // but effectively disable the logic.
 
                 let interactingImage = null;
-                if (floatingImages) {
-                    let minDist = 100;
-                    floatingImages.forEach(sprite => {
-                        // 交互优化：只有在树模式下（照片挂在树上）或者照片已经被选中时，才允许交互
-                        // 防止在做其他手势（如爱心）时误触隐藏在空中的照片
-                        if (currentModel !== 'tree' && !sprite.userData.isSelected) {
-                            sprite.userData.isSelected = false; // 确保隐藏状态下不被选中
-                            return;
-                        }
 
-                        sprite.userData.isSelected = false; // Reset to check again
-                        const dist = Math.sqrt(
-                            Math.pow(sprite.position.x - cursorX, 2) +
-                            Math.pow(sprite.position.y - cursorY, 2)
-                        );
-                        // 问题4解决：现在很容易误触，缩小判定范围 (0.5 -> 0.3)
-                        if (dist < 0.3 && dist < minDist) {
-                            minDist = dist;
-                            interactingImage = sprite;
-                        }
-                    });
-                }
-
-                // 问题1解决：改进手势识别 - 使用距离而非单纯坐标，更稳健
-                const dist = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
                 const wrist = landmarks[0];
-
-                // 使用 handWidth 作为基准尺度 (handWidth = distance(thumbTip, pinkyTip))
-                // 注意：handWidth 会随着手势变化（特别是握拳），所以用手掌尺度更稳定
-                // 使用 Wrist(0) 到 MiddleMCP(9) 的距离作为基准尺度
                 const palmScale = dist(landmarks[0], landmarks[9]);
 
-                // 简单的手指伸展检测：指尖到手腕距离 > 指关节到手腕距离 * 阈值
-                const isExtended = (tipIdx, pipIdx) => dist(landmarks[tipIdx], wrist) > dist(landmarks[pipIdx], wrist) * 1.05; // 稍微放宽一点阈值
-
-                // 拇指伸展检测:
-                // 1. 拇指尖(4) 到 小指根(17) 的距离足够大 (相对于手掌)
-                // 2. 拇指尖(4) 到 食指根(5) 的距离足够大 (避免贴在食指上)
+                const isExtended = (tipIdx, pipIdx) => dist(landmarks[tipIdx], wrist) > dist(landmarks[pipIdx], wrist) * 1.05;
                 const isThumbExtended = dist(landmarks[4], landmarks[17]) > palmScale * 1.2 && dist(landmarks[4], landmarks[5]) > palmScale * 0.3;
 
                 const isIndexExt = isExtended(8, 6);
@@ -942,89 +1226,59 @@
 
                 const extendedCount = [isIndexExt, isMiddleExt, isRingExt, isPinkyExt].filter(Boolean).length;
 
-                // 捏合检测 - 距离阈值基于手掌尺度
                 const pinchDist = dist(landmarks[4], landmarks[8]);
                 const isPinch = pinchDist < palmScale * 0.25;
 
-                // 检查是否在交互图片
-                let isImageInteraction = false;
-                if (interactingImage && isPinch) {
-                    interactingImage.userData.isSelected = true;
-                }
+                const isCurled = (tipIdx, pipIdx) => dist(landmarks[tipIdx], wrist) < dist(landmarks[pipIdx], wrist) * 1.35;
 
                 let detectedGesture = 'idle';
                 let statusText = "🖐️ 散开";
                 let newRomanticMode = isRomanticMode;
 
-                if (isImageInteraction) {
-                    detectedGesture = currentModel;
-                    statusText = "🖼️ 查看照片";
-                    newRomanticMode = isRomanticMode;
-                }
-                // 宽松的弯曲检测：允许手指稍微放松一点也能被视为弯曲
-                // 如果指尖距离手腕 仅比 指关节距离手腕 多一点点(或者更少)，就算弯曲
-                // 之前的 Extended 是 > 1.05，这里 Curled 只要 < 1.35 就行，给一个较大的宽容度
-                const isCurled = (tipIdx, pipIdx) => dist(landmarks[tipIdx], wrist) < dist(landmarks[pipIdx], wrist) * 1.35;
-
-                // 捏合时的状态区分
                 if (isPinch) {
                     if (isMiddleExt && isRingExt && isPinkyExt) {
-                        detectedGesture = 'gesture3'; // OK手势 -> 大头菜菜
+                        detectedGesture = 'gesture3';
                         newRomanticMode = false;
                         statusText = "👌 大头菜菜";
                     } else if (isCurled(12, 10) && isCurled(16, 14) && isCurled(20, 18)) {
-                        // 只有当其他手指都比较明确弯曲时才算爱心，避免误触
-                        detectedGesture = 'heart'; // 比心
+                        detectedGesture = 'heart';
                         newRomanticMode = true;
                         statusText = "❤️ 爱心";
                     } else if (!isMiddleExt && !isRingExt && !isPinkyExt) {
-                        // 备用判定：如果都不算伸直
                         detectedGesture = 'heart';
                         newRomanticMode = true;
                         statusText = "❤️ 爱心";
                     } else {
-                        // 模糊状态，保持上一次
                         detectedGesture = lastDetectedGesture;
                         statusText = "调整中...";
                     }
                 } else {
-                    // 非捏合状态的手势判断
-
-                    // 单指 (1) -> 喜欢你
-                    // 逻辑：食指伸直，其他手指弯曲
                     const isOneFinger = isIndexExt && !isMiddleExt && !isRingExt && !isPinkyExt;
-
-                    // 剪刀手：食指+中指伸直，无名指+小指弯曲
                     const isVictory = isIndexExt && isMiddleExt && isCurled(16, 14) && isCurled(20, 18);
 
                     if (extendedCount === 0 && !isThumbExtended) {
-                        // 握拳 -> 圣诞树
                         detectedGesture = 'tree';
                         newRomanticMode = true;
                         statusText = "✊ 🎄💰 圣诞树";
                     } else if (isOneFinger) {
-                        // 单指 -> 喜欢你
                         detectedGesture = 'gesture1';
                         newRomanticMode = true;
                         statusText = "☝️ 喜欢你";
                     } else if (isVictory) {
-                        // 剪刀手 -> 我
                         detectedGesture = 'gesture2';
                         newRomanticMode = false;
                         statusText = "✌️ 我";
                     } else if (extendedCount >= 4) {
-                        // 张开手 -> 散开
                         detectedGesture = 'idle';
                         newRomanticMode = false;
                         statusText = "🖐️ 散开";
                     } else {
-                        // 其他过渡状态保持不变
                         detectedGesture = lastDetectedGesture;
                         statusText = "🖐️ " + (lastDetectedGesture === 'idle' ? "散开" : "保持...");
                     }
                 }
 
-                // 手势防抖逻辑
+                // Debounce
                 if (detectedGesture === lastDetectedGesture) {
                     gestureStableCounter++;
                 } else {
@@ -1097,9 +1351,26 @@
             }
 
             // 更新光标位置
+            // 更新光标位置 - 现在跟随指尖中心 (Interaction Cursor)
             if (cursorMesh) {
-                cursorMesh.position.lerp(new THREE.Vector3(handPosition.x, handPosition.y, 0), 0.2);
-                // 简单的捏合视觉反馈
+                // 使用更灵敏的 Lerp，因为指尖运动快
+                cursorMesh.position.lerp(new THREE.Vector3(
+                    // 如果 handPosition 和 interactionPos 差异大，可能需要把 interactionPos 存到全局变量
+                    // 这里我们简单近似，或者需要修改 onHandsResults 暴露 interactionX/Y
+                    // 但为了简便，我们让光标继续跟随 handPosition (手掌)，
+                    // 但是！为了"准确"，光标必须显示交互点。
+                    // 让我们在 update 中无法获得 interactionX... 
+                    // 修改：在 onHandsResults 中更新 cursorMesh 位置更合适，或者存全局。
+
+                    // 临时方案：让 cursorMesh 在 onHandsResults 直接更新，这里注释掉或者只做平滑
+                    // 为了代码连贯性，我们还是用 handPosition，但我们在 onHandsResults 里把 handPosition 更新为了 interactionX?
+                    // 不，handPosition 还是 Palm。
+                    // 这里的 cursorMesh 逻辑其实有点多余，因为我们在 js 里没法跨作用域拿到 interactionX，除非...
+                    // 让我们回退一点想法：光标还是跟随手掌整体移动比较稳，但是选中判定用指尖。
+                    // 或者：我们把 interactionX 存入 global cursorTarget
+                    cursorTarget.x, cursorTarget.y, 0
+                ), 0.3);
+
                 const scale = (currentModel === 'heart' || currentModel === 'gesture3') ? 0.5 : 1.0;
                 cursorMesh.scale.setScalar(scale);
             }
