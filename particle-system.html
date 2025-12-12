@@ -511,14 +511,16 @@
 
         function enterImmersive() {
             document.body.classList.add('immersive');
-            // 尝试进入全屏
+            // User requested to disable actual fullscreen to prevent lag
+            /* 
             if (document.documentElement.requestFullscreen) {
                 document.documentElement.requestFullscreen().catch(err => {
                     console.log('Fullscreen denied:', err);
                 });
             }
+            */
 
-            updateStatus('✨ 已进入沉浸模式 | 双击屏幕退出', true);
+            updateStatus('✨ 已进入沉浸模式 (无全屏) | 双击屏幕退出', true);
 
             // 延迟添加监听防止连点
             setTimeout(() => {
@@ -529,9 +531,9 @@
         function exitImmersive() {
             document.body.classList.remove('immersive');
 
-            if (document.fullscreenElement) {
-                document.exitFullscreen().catch(err => console.log('Exit fullscreen error:', err));
-            }
+            // if (document.fullscreenElement) {
+            //     document.exitFullscreen().catch(err => console.log('Exit fullscreen error:', err));
+            // }
 
             updateStatus('🎥 已恢复控制', true);
         }
