@@ -411,8 +411,9 @@
                     id: i,
                     angleOffset: (i / imageUrls.length) * Math.PI * 2,
                     isSelected: false,
-                    isZoomed: false, // New property for zoomed state
-                    targetScale: 0.4
+                    isZoomed: false,
+                    targetScale: 0.4,
+                    zoomEffect: 0 // Store random effect type
                 };
                 imageGroup.add(sprite);
                 floatingImages.push(sprite);
@@ -470,81 +471,88 @@
                 let targetScale = 0.0;
 
                 if (isDualHandMode) {
-                    // Check if any focus mode is active (one image zoomed)
+                    // Check if any focus mode is active
                     let hasZoomed = floatingImages.some(img => img.userData.isZoomed);
 
-                    // --- 设计师优化：酷炫弯曲画廊 ---
-                    const radius = 4.0; // 巨大的圆环半径，产生微弧度
-                    const angleSpacing = 0.15; // 角度间距 (弧度)
+                    // --- 无尽画廊逻辑 (Infinite Gallery) ---
+                    const total = floatingImages.length;
 
-                    // 计算当前图片相对于中心的偏移量 (浮点数索引)
-                    const relIdx = i - galleryScroll;
-                    const theta = relIdx * angleSpacing; // 偏角
+                    // 核心：循环索引算法
+                    // 计算图片相对于当前滚动位置的距离，并利用周期性将其映射到 [-total/2, total/2] 区间
+                    // 这样图片就会 endless 地循环出现
+                    let relIdx = i - galleryScroll;
+                    relIdx = relIdx - total * Math.round(relIdx / total);
+
+                    const angleSpacing = 0.25; // 稍微稀疏一点，大气
+                    const radius = 3.5;
+                    const theta = relIdx * angleSpacing;
 
                     // 基础位置：圆弧排列
                     const baseX = radius * Math.sin(theta);
                     const baseZ = 2.0 - radius * (1 - Math.cos(theta));
 
-                    // 默认状态（未选中）：
-                    targetPos.set(baseX, 0, baseZ);
-                    targetScale = 0.22;
+                    // 默认面向：始终朝向圆心/摄像机
+                    // 我们先设置位置，最后统一 lookAt
 
-                    // 状态优先级：Zoomed (握拳) > Selected (悬停) > Normal
+                    targetPos.set(baseX, 0, baseZ);
+                    targetScale = 0.3; // 默认稍大一点
+
+                    // Reset opacity/color
+                    sprite.material.color.setHex(0xffffff);
+                    sprite.material.opacity = 0.6;
 
                     if (sprite.userData.isZoomed) {
-                        // 【Hero Focus Mode：全屏展示】
-                        // 位置：屏幕正中央
-                        // Camera Y=0.5 (set in createParticleSystem), so Target Y should be 0.5 to be centered.
-                        targetPos.set(0, 0.5, 3.0);
-                        targetScale = 0.55;
+                        // 【Hero Mode：至尊展示】
+                        // 不再晃动，而是极其缓慢、优雅的悬浮 (Cinematic Float)
+                        targetPos.set(0, 0.5, 2.5); // 稍微近一点，且在正中 (Y=0.5 aligned with Camera)
+                        targetScale = 0.8; // 巨幅展示
 
-                        // 酷炫特效：
-                        // 1. 呼吸律动 (加大力度)
-                        targetScale += Math.sin(time * 3) * 0.03;
-                        // 2. 微微摇摆 (Z-Roll)
-                        sprite.material.rotation = Math.sin(time * 2.0) * 0.05;
-
-                        // 3. 高光时刻
-                        sprite.material.color.setHex(0xffffff);
+                        // 设为完全不透明
                         sprite.material.opacity = 1.0;
 
+                        // 动态视差 (Parallax) - 模拟拿在手里的微妙感
+                        // 使用叠加的正弦波，制造不重复的自然摆动
+                        // Note: Sprite rotation only affects Z (2D rotation). 
+                        // To get 3D rotation we rely on the fact that we upgraded to Mesh in createFloatingImages
+                        // If it's still Sprite, these RotX/Y won't do much, but won't crash.
+
+                        const rotX = Math.sin(time * 0.5) * 0.05 + Math.cos(time * 0.3) * 0.02;
+                        const rotY = Math.cos(time * 0.4) * 0.05 + Math.sin(time * 0.2) * 0.02;
+
+                        // 我们需要先 lookAt camera，再叠加微动
+                        sprite.lookAt(camera.position);
+                        sprite.rotateX(rotX);
+                        sprite.rotateY(rotY);
+
                     } else if (hasZoomed) {
-                        // 【Background Mode：当有主角时，我是背景】
-                        // 极度淡化，让出舞台
-                        targetScale = 0.15;
-                        sprite.material.opacity = 0.1; // 几乎看不见
-                        sprite.material.color.setHex(0x555555); // 暗掉
-                        // 保持在原位，但稍微退后
-                        targetPos.z -= 0.5;
-                        sprite.material.rotation = 0;
+                        // 背景模式
+                        targetScale = 0.2;
+                        sprite.material.opacity = 0.05; // 极淡
+                        targetPos.z -= 1.0; // 退后
+                        sprite.lookAt(camera.position);
 
                     } else if (sprite.userData.isSelected) {
                         // 【Hover Mode：悬停选中】
-                        sprite.material.rotation = 0; // Reset
+                        // 修正：对齐摄像机高度 0.5
+                        targetPos.z += 0.8; // 明显突前
+                        targetPos.y = 0.5; // <--- Changed from 0.0 to 0.5
+                        targetScale = 0.45;
+                        sprite.material.opacity = 1.0;
 
-                        // 弹出来
-                        targetPos.z += 0.5;
-                        targetPos.y = 0.2;
-                        targetScale = 0.45; // 变大
-
-                        // 暖白光晕
-                        sprite.material.color.setHex(0xfffae6);
-                        sprite.material.opacity = 0.95;
-
-                        // 微微晃动
-                        targetPos.x += Math.sin(time * 10) * 0.02;
+                        // 简单的面向相机
+                        sprite.lookAt(camera.position);
+                        // 微微放大呼吸
+                        targetScale += Math.sin(time * 4) * 0.01;
 
                     } else {
-                        // 【Passive Mode：普通列表】
-                        sprite.material.rotation = 0;
+                        // 普通模式
+                        // 距离越远越淡
+                        const dist = Math.abs(relIdx);
+                        sprite.material.opacity = Math.max(0.0, 0.6 - dist * 0.15);
+                        sprite.lookAt(camera.position);
 
-                        const distFactor = Math.abs(relIdx);
-                        sprite.material.color.setHex(0x99aabb); // 蓝灰色调
-                        // 渐变透明
-                        const alpha = Math.max(0.05, 0.6 - distFactor * 0.1);
-                        sprite.material.opacity = alpha;
-
-                        targetPos.z -= distFactor * 0.15;
+                        // 只有在这里才做 Z 轴景深压缩
+                        targetPos.z -= dist * 0.2;
                     }
 
                     // 只要在双手模式，就忽略下面的通用逻辑
@@ -1111,10 +1119,10 @@
 
                     galleryScroll += speed;
 
-                    // Soft Clamp
-                    const maxScroll = floatingImages.length - 1;
-                    if (galleryScroll < -0.5) galleryScroll = -0.5;
-                    if (galleryScroll > maxScroll + 0.5) galleryScroll = maxScroll + 0.5;
+                    // Soft Clamp Removed for Infinite Scroll
+                    // const maxScroll = floatingImages.length - 1;
+                    // if (galleryScroll < -0.5) galleryScroll = -0.5;
+                    // if (galleryScroll > maxScroll + 0.5) galleryScroll = maxScroll + 0.5;
 
                     // 2. Right Hand: Selection & Zoom
                     const rX = -(rPalm.x - 0.5) * 4;
@@ -1136,16 +1144,23 @@
                         selectedIdx = lastSelectedIdx;
                         statusText = "✨ 正在展示图片 ✨";
                     } else {
-                        const spacing = 0.5;
-                        let bestDist = 100;
-                        floatingImages.forEach((img, i) => {
-                            const imgX = (i - galleryScroll) * spacing;
-                            const dist = Math.abs(imgX - rX);
-                            if (dist < 0.4 && dist < bestDist) {
-                                bestDist = dist;
+                        // New Selection Logic for Infinite Scroll
+                        // Find the image whose "wrapped index" is closest to 0
+                        const total = floatingImages.length;
+                        selectedIdx = -1;
+                        let minDiff = 100;
+
+                        for (let i = 0; i < total; i++) {
+                            // Calculate wrapped relative index exactly as in updateFloatingImages
+                            let relIdx = i - galleryScroll;
+                            relIdx = relIdx - total * Math.round(relIdx / total);
+
+                            // If this image is effectively "in the center" (relIdx close to 0)
+                            if (Math.abs(relIdx) < 0.5 && Math.abs(relIdx) < minDiff) {
+                                minDiff = Math.abs(relIdx);
                                 selectedIdx = i;
                             }
-                        });
+                        }
 
                         if (selectedIdx !== -1) lastSelectedIdx = selectedIdx;
                         else lastSelectedIdx = -1;
