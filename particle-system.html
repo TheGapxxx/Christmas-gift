@@ -327,14 +327,19 @@
         <button class="icon-btn" onclick="openHelp()">
             <span>❔</span> 帮助
         </button>
+        <button class="icon-btn" id="music-btn" onclick="toggleMusic()"><span>🔇</span></button>
         <button class="icon-btn" onclick="enterImmersive()">
             <span>👁️</span> 沉浸
         </button>
     </div>
 
-    <!-- Hidden File Input -->
+    <!-- Hidden File Inputs -->
     <input type="file" id="img-upload" multiple accept="image/*" style="display: none;"
         onchange="handleImageUpload(this)">
+    <input type="file" id="bgm-upload" accept="audio/*" style="display: none;" onchange="handleMusicUpload(this)">
+
+    <!-- Audio Element -->
+    <audio id="bgm" loop></audio>
 
     <video id="video" autoplay playsinline muted></video>
     <div id="canvas-container"></div>
@@ -361,6 +366,16 @@
             <div class="form-group">
                 <label class="form-label">自称/署名 (剪刀手✌️)</label>
                 <input type="text" id="input-me" class="form-input" placeholder="例如: 我">
+            </div>
+            <div class="form-group">
+                <label class="form-label">背景音乐 🎵</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button class="icon-btn" onclick="document.getElementById('bgm-upload').click()"
+                        style="flex: 1; justify-content: center;">
+                        <span>📂</span> 上传音乐
+                    </button>
+                    <span id="bgm-status" style="font-size: 12px; color: rgba(255,255,255,0.5);">未选择</span>
+                </div>
             </div>
             <button class="btn-primary" onclick="saveSettings()">保存配置</button>
         </div>
@@ -488,6 +503,57 @@
             }
 
             updateStatus('🎥 已恢复控制', true);
+        }
+
+        /* Music Controls */
+        function toggleMusic() {
+            const bgm = document.getElementById('bgm');
+            const btn = document.getElementById('music-btn');
+
+            if (!bgm.src) {
+                updateStatus('⚠️ 请先在设置中上传音乐', false);
+                // 引导去设置?
+                openSettings();
+                return;
+            }
+
+            if (bgm.paused) {
+                bgm.play().then(() => {
+                    btn.innerHTML = '<span>🎵</span>';
+                    updateStatus('▶️ 音乐已播放', true);
+                }).catch(e => {
+                    console.error("Play failed", e);
+                    updateStatus('❌ 播放失败，请重试', false);
+                });
+            } else {
+                bgm.pause();
+                btn.innerHTML = '<span>🔇</span>';
+                updateStatus('⏸️ 音乐已暂停', true);
+            }
+        }
+
+        function handleMusicUpload(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const url = URL.createObjectURL(file);
+                const bgm = document.getElementById('bgm');
+
+                bgm.src = url;
+                bgm.volume = 0.5; // Default 50%
+
+                // Update text in settings
+                const statusSpan = document.getElementById('bgm-status');
+                if (statusSpan) statusSpan.textContent = file.name.substring(0, 15) + (file.name.length > 15 ? '...' : '');
+
+                // Auto play
+                bgm.play().then(() => {
+                    document.getElementById('music-btn').innerHTML = '<span>🎵</span>';
+                    updateStatus('🎵 背景音乐已加载', true);
+                }).catch(e => {
+                    document.getElementById('music-btn').innerHTML = '<span>🔇</span>';
+                    updateStatus('✅ 音乐就绪 (点击播放)', true);
+                });
+            }
         }
 
         function closeModal(id) {
