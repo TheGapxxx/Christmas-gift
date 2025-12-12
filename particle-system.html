@@ -994,13 +994,49 @@
                     colors[i * 3 + 2] += (targetColor.b - colors[i * 3 + 2]) * 0.05;
                 }
             } else {
-                let targetColor = CONFIG.normalColor;
-                if (currentModel === 'heart' || currentModel === 'gesture1') targetColor = CONFIG.romanticColor;
+                let activeColor = CONFIG.normalColor;
+                let isChristmasVibe = false;
+
+                if (currentModel === 'heart' || currentModel === 'gesture1') {
+                    activeColor = CONFIG.romanticColor;
+                } else if (currentModel === 'idle' && handDepth > 1.2) {
+                    // 满天星(idle)且手掌靠近(handDepth大) -> 圣诞氛围
+                    isChristmasVibe = true;
+                }
 
                 for (let i = 0; i < CONFIG.particleCount; i++) {
-                    colors[i * 3] += (targetColor.r - colors[i * 3]) * 0.05;
-                    colors[i * 3 + 1] += (targetColor.g - colors[i * 3 + 1]) * 0.05;
-                    colors[i * 3 + 2] += (targetColor.b - colors[i * 3 + 2]) * 0.05;
+                    let targetR, targetG, targetB;
+
+                    if (isChristmasVibe) {
+                        // 圣诞配色策略
+                        const s = shapes[i];
+                        let c;
+                        // 根据形状或随机分配
+                        if (s === 1 || s === 7 || s === 11) c = CONFIG.treeRedColor; // Gift, Santa, Heart
+                        else if (s === 3 || s === 8 || s === 9) c = CONFIG.coinGoldColor; // Bell, Coin, Star
+                        else if (s === 2 || s === 10 || s === 12) c = CONFIG.treeSilverColor; // Sock, Snowflake, Snowman
+                        else if (s === 6 || s === 5 || s === 15) c = CONFIG.treeGreenColor; // Tree, Triangle, Cube
+                        else {
+                            // 对于普通圆点(0)和其他，随机分配红绿金
+                            const mod = i % 10;
+                            if (mod < 4) c = CONFIG.treeGreenColor;
+                            else if (mod < 7) c = CONFIG.treeRedColor;
+                            else c = CONFIG.coinGoldColor;
+                        }
+
+                        // 亮度增强 (Overdrive)
+                        targetR = c.r * 1.8;
+                        targetG = c.g * 1.8;
+                        targetB = c.b * 1.8;
+                    } else {
+                        targetR = activeColor.r;
+                        targetG = activeColor.g;
+                        targetB = activeColor.b;
+                    }
+
+                    colors[i * 3] += (targetR - colors[i * 3]) * 0.1;
+                    colors[i * 3 + 1] += (targetG - colors[i * 3 + 1]) * 0.1;
+                    colors[i * 3 + 2] += (targetB - colors[i * 3 + 2]) * 0.1;
                 }
             }
             particles.geometry.attributes.customColor.needsUpdate = true;
