@@ -307,6 +307,40 @@
             font-size: 14px;
             color: rgba(255, 255, 255, 0.8);
         }
+
+        /* Effects Dropdown */
+        #effects-dropdown {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(30, 30, 35, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 15px;
+            width: 320px;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+            transform-origin: top right;
+        }
+
+        #effects-dropdown.show {
+            display: block;
+            animation: dropdownEnter 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes dropdownEnter {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
     </style>
 </head>
 
@@ -316,10 +350,9 @@
         <div class="loading-text">正在准备礼物🎁中...</div>
     </div>
 
-    <!-- Top Controls -->
     <div class="top-controls">
-        <button class="icon-btn" id="lock-btn" onclick="toggleGestureLock()">
-            <span>🔓</span> 锁定
+        <button class="icon-btn" onclick="toggleEffectsPanel()">
+            <span>🎨</span> 特效
         </button>
         <button class="icon-btn" onclick="openSettings()">
             <span>⚙️</span> 设置
@@ -387,6 +420,34 @@
                 </div>
             </div>
             <button class="btn-primary" onclick="saveSettings()">保存配置</button>
+        </div>
+    </div>
+
+    <!-- Effects Dropdown Panel -->
+    <div id="effects-dropdown">
+        <div style="font-size:14px; color:rgba(255,255,255,0.5); margin-bottom:10px;">选择特效 (自动锁定)</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <button class="btn-primary" onclick="selectManualEffect('idle')"
+                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); font-size:14px;">🌌
+                满天星</button>
+            <button class="btn-primary" onclick="selectManualEffect('tree')"
+                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); font-size:14px;">🎄
+                圣诞树</button>
+            <button class="btn-primary" onclick="selectManualEffect('heart')"
+                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); font-size:14px;">❤️
+                爱心特效</button>
+            <button class="btn-primary" onclick="selectManualEffect('gesture1')"
+                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); font-size:14px;">☝️
+                爱的宣言</button>
+            <button class="btn-primary" onclick="selectManualEffect('gesture2')"
+                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); font-size:14px;">✌️
+                专属署名</button>
+            <button class="btn-primary" onclick="selectManualEffect('gesture3')"
+                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); font-size:14px;">👌
+                对象名字</button>
+            <button class="btn-primary" onclick="unlockAndResume()" style="grid-column: span 2; margin-top: 5px;">
+                🔓 恢复/解锁手势
+            </button>
         </div>
     </div>
 
@@ -508,6 +569,46 @@
             document.getElementById('settings-modal').classList.add('show');
         }
 
+        function toggleEffectsPanel() {
+            const panel = document.getElementById('effects-dropdown');
+            panel.classList.toggle('show');
+        }
+
+        function selectManualEffect(modelName) {
+            // 1. Change Model
+            changeModel(modelName);
+
+            // 2. Auto Lock (Force Lock)
+            toggleGestureLock(true);
+
+            // 3. Update Status Text manually
+            let label = "";
+            if (modelName === 'idle') label = "🌌 满天星";
+            else if (modelName === 'tree') label = "🎄 圣诞树";
+            else if (modelName === 'heart') label = "❤️ 爱心";
+            else if (modelName === 'gesture1') label = "☝️ " + userConfig.msg;
+            else if (modelName === 'gesture2') label = "✌️ " + userConfig.me;
+            else if (modelName === 'gesture3') label = "👌 " + userConfig.targetName;
+
+            updateStatus('🔒 已切换并锁定: ' + label, true);
+
+            // Special Case: Force 'active' state for Starfield (idle)
+            if (modelName === 'idle') {
+                handDepth = 2.0;
+            } else {
+                // Reset depth for others to prevent them from being too bright/large
+                handDepth = 1.0;
+            }
+
+            // Close dropdown
+            document.getElementById('effects-dropdown').classList.remove('show');
+        }
+
+        function unlockAndResume() {
+            toggleGestureLock(false);
+            document.getElementById('effects-dropdown').classList.remove('show');
+        }
+
         function openHelp() {
             document.getElementById('help-modal').classList.add('show');
         }
@@ -542,14 +643,17 @@
         }
 
         /* Lock Controls */
-        function toggleGestureLock() {
-            isGestureLocked = !isGestureLocked;
-            const btn = document.getElementById('lock-btn');
+        function toggleGestureLock(forceState = null) {
+            // Allow forcing state (true = locked, false = unlocked)
+            if (forceState !== null) {
+                isGestureLocked = forceState;
+            } else {
+                isGestureLocked = !isGestureLocked;
+            }
+
             if (isGestureLocked) {
-                btn.innerHTML = '<span>🔒</span> 解锁';
                 updateStatus('🔒 手势已锁定 (保持当前状态)', false);
             } else {
-                btn.innerHTML = '<span>🔓</span> 锁定';
                 updateStatus('🔓 手势解锁 (恢复控制)', true);
             }
         }
@@ -1821,23 +1925,20 @@
                         detectedGesture = 'gesture3';
                         newRomanticMode = false;
                         statusText = "👌 " + userConfig.targetName;
-                    } else if (isCurled(12, 10) && isCurled(16, 14) && isCurled(20, 18)) {
-                        detectedGesture = 'heart';
-                        newRomanticMode = true;
-                        statusText = "❤️ 爱心";
                     } else if (!isMiddleExt && !isRingExt && !isPinkyExt) {
-                        // 修复：握拳时(Fist)拇指和食指挨得近，会被识别成比心(Heart)
-                        // 区别：握拳时食指指尖离手腕很近(Compact)，比心时食指是架起来的
-                        const index2Wrist = dist(landmarks[8], landmarks[0]);
+                        // 逻辑整合：其余三指不是伸直状态（即卷曲或微屈）
+                        // 此时可能是：比心 (Heart) 或 圣诞树 (Tree/Fist)
 
-                        if (index2Wrist < palmScale * 1.2) {
-                            detectedGesture = 'tree';
-                            newRomanticMode = true;
-                            statusText = "✊ 🎄💰 圣诞树";
-                        } else {
+                        // 用户严格要求：爱心必须食指和拇指都伸直 (Extended)
+                        if (isIndexExt && isThumbExtended) {
                             detectedGesture = 'heart';
                             newRomanticMode = true;
                             statusText = "❤️ 爱心";
+                        } else {
+                            // 否则判定为握拳/圣诞树
+                            detectedGesture = 'tree';
+                            newRomanticMode = true;
+                            statusText = "✊ 🎄💰 圣诞树";
                         }
                     } else {
                         detectedGesture = lastDetectedGesture;
