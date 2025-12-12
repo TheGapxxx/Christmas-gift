@@ -506,46 +506,120 @@
         }
 
         /* Music Controls */
+        const GenerativeMusic = {
+            ctx: null,
+            isPlaying: false,
+            interval: null,
+            noteIndex: 0,
+
+            init: function () {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+
+            playNote: function (freq, time) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, time);
+
+                // Bell Envelope
+                gain.gain.setValueAtTime(0, time);
+                gain.gain.linearRampToValueAtTime(0.3, time + 0.05); // Attack
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 1.0); // Decay
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(time);
+                osc.stop(time + 1.5);
+            },
+
+            play: function () {
+                this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                this.isPlaying = true;
+
+                const notes = [
+                    { f: 659.25, d: 2 }, { f: 659.25, d: 2 }, { f: 659.25, d: 4 }, // E E E
+                    { f: 659.25, d: 2 }, { f: 659.25, d: 2 }, { f: 659.25, d: 4 }, // E E E
+                    { f: 659.25, d: 2 }, { f: 783.99, d: 2 }, { f: 523.25, d: 3 }, { f: 587.33, d: 1 }, { f: 659.25, d: 8 }, // E G C D E
+                    { f: 698.46, d: 2 }, { f: 698.46, d: 2 }, { f: 698.46, d: 3 }, { f: 698.46, d: 1 }, // F F F F
+                    { f: 698.46, d: 2 }, { f: 659.25, d: 2 }, { f: 659.25, d: 2 }, { f: 659.25, d: 1 }, { f: 659.25, d: 1 }, // F E E E E
+                    { f: 659.25, d: 2 }, { f: 587.33, d: 2 }, { f: 587.33, d: 2 }, { f: 659.25, d: 2 }, { f: 587.33, d: 4 }, { f: 783.99, d: 4 } // E D D E D G
+                ];
+
+                let nextTime = this.ctx.currentTime;
+                this.noteIndex = 0;
+
+                const schedule = () => {
+                    if (!this.isPlaying) return;
+
+                    // Schedule next few notes
+                    while (nextTime < this.ctx.currentTime + 0.5) {
+                        const note = notes[this.noteIndex % notes.length];
+                        this.playNote(note.f, nextTime);
+                        nextTime += note.d * 0.25; // Speed multiplier
+                        this.noteIndex++;
+                    }
+                    this.interval = requestAnimationFrame(schedule);
+                };
+                schedule();
+            },
+
+            stop: function () {
+                this.isPlaying = false;
+                if (this.interval) cancelAnimationFrame(this.interval);
+            }
+        };
+
         function toggleMusic() {
             const bgm = document.getElementById('bgm');
             const btn = document.getElementById('music-btn');
 
-            if (!bgm.src) {
-                updateStatus('⚠️ 请先在设置中上传音乐', false);
-                // 引导去设置?
-                openSettings();
+            // Priority 1: User Uploaded File
+            if (bgm.src) {
+                if (bgm.paused) {
+                    GenerativeMusic.stop(); // Stop built-in if running
+                    bgm.play().then(() => {
+                        btn.innerHTML = '<span>🎵</span>';
+                        updateStatus('▶️ 播放自定义音乐', true);
+                    }).catch(e => updateStatus('❌ 播放失败', false));
+                } else {
+                    bgm.pause();
+                    btn.innerHTML = '<span>🔇</span>';
+                    updateStatus('⏸️ 音乐已暂停', true);
+                }
                 return;
             }
 
-            if (bgm.paused) {
-                bgm.play().then(() => {
-                    btn.innerHTML = '<span>🎵</span>';
-                    updateStatus('▶️ 音乐已播放', true);
-                }).catch(e => {
-                    console.error("Play failed", e);
-                    updateStatus('❌ 播放失败，请重试', false);
-                });
-            } else {
-                bgm.pause();
+            // Priority 2: Built-in Procedural Music
+            if (GenerativeMusic.isPlaying) {
+                GenerativeMusic.stop();
                 btn.innerHTML = '<span>🔇</span>';
                 updateStatus('⏸️ 音乐已暂停', true);
+            } else {
+                GenerativeMusic.play();
+                btn.innerHTML = '<span>🎵</span>';
+                updateStatus('🎼 播放内置八音盒: Jingle Bells', true);
             }
         }
 
         function handleMusicUpload(input) {
+            GenerativeMusic.stop(); // Stop built-in first
             if (input.files && input.files[0]) {
                 const file = input.files[0];
                 const url = URL.createObjectURL(file);
                 const bgm = document.getElementById('bgm');
 
                 bgm.src = url;
-                bgm.volume = 0.5; // Default 50%
+                bgm.volume = 0.5;
 
-                // Update text in settings
                 const statusSpan = document.getElementById('bgm-status');
                 if (statusSpan) statusSpan.textContent = file.name.substring(0, 15) + (file.name.length > 15 ? '...' : '');
 
-                // Auto play
                 bgm.play().then(() => {
                     document.getElementById('music-btn').innerHTML = '<span>🎵</span>';
                     updateStatus('🎵 背景音乐已加载', true);
