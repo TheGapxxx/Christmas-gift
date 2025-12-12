@@ -137,6 +137,14 @@
             display: flex;
             gap: 12px;
             z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+
+        body.immersive .top-controls,
+        body.immersive #status,
+        body.immersive #video {
+            opacity: 0 !important;
+            pointer-events: none;
         }
 
         .icon-btn {
@@ -319,6 +327,9 @@
         <button class="icon-btn" onclick="openHelp()">
             <span>❔</span> 帮助
         </button>
+        <button class="icon-btn" onclick="enterImmersive()">
+            <span>👁️</span> 沉浸
+        </button>
     </div>
 
     <!-- Hidden File Input -->
@@ -450,6 +461,33 @@
 
         function openHelp() {
             document.getElementById('help-modal').classList.add('show');
+        }
+
+        function enterImmersive() {
+            document.body.classList.add('immersive');
+            // 尝试进入全屏
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('Fullscreen denied:', err);
+                });
+            }
+
+            updateStatus('👀 已进入沉浸模式 | 双击屏幕退出', true);
+
+            // 延迟添加监听防止连点
+            setTimeout(() => {
+                window.addEventListener('dblclick', exitImmersive, { once: true });
+            }, 500);
+        }
+
+        function exitImmersive() {
+            document.body.classList.remove('immersive');
+
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err => console.log('Exit fullscreen error:', err));
+            }
+
+            updateStatus('🎥 已恢复控制', true);
         }
 
         function closeModal(id) {
