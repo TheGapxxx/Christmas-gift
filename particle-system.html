@@ -1804,9 +1804,19 @@
                         newRomanticMode = true;
                         statusText = "❤️ 爱心";
                     } else if (!isMiddleExt && !isRingExt && !isPinkyExt) {
-                        detectedGesture = 'heart';
-                        newRomanticMode = true;
-                        statusText = "❤️ 爱心";
+                        // 修复：握拳时(Fist)拇指和食指挨得近，会被识别成比心(Heart)
+                        // 区别：握拳时食指指尖离手腕很近(Compact)，比心时食指是架起来的
+                        const index2Wrist = dist(landmarks[8], landmarks[0]);
+
+                        if (index2Wrist < palmScale * 1.2) {
+                            detectedGesture = 'tree';
+                            newRomanticMode = true;
+                            statusText = "✊ 🎄💰 圣诞树";
+                        } else {
+                            detectedGesture = 'heart';
+                            newRomanticMode = true;
+                            statusText = "❤️ 爱心";
+                        }
                     } else {
                         detectedGesture = lastDetectedGesture;
                         statusText = "调整中...";
@@ -1815,11 +1825,23 @@
                     const isOneFinger = isIndexExt && !isMiddleExt && !isRingExt && !isPinkyExt;
                     const isVictory = isIndexExt && isMiddleExt && isCurled(16, 14) && isCurled(20, 18);
 
+                    // 修复：比心(手指爱心)容易被识别为"永远爱你"(单指)
+                    // 逻辑优化：明确区分“接触”和“未接触”
+                    const thumbIndexDist = dist(landmarks[4], landmarks[8]);
+                    const isTouching = thumbIndexDist < palmScale * 0.35;
+
+                    const isLooseHeart = isOneFinger && isTouching; // 接触 -> 爱心
+                    const isStrictGesture1 = isOneFinger && !isTouching; // 未接触 -> 永远爱你
+
                     if (extendedCount === 0 && !isThumbExtended) {
                         detectedGesture = 'tree';
                         newRomanticMode = true;
                         statusText = "✊ 🎄💰 圣诞树";
-                    } else if (isOneFinger) {
+                    } else if (isLooseHeart) {
+                        detectedGesture = 'heart';
+                        newRomanticMode = true;
+                        statusText = "❤️ 爱心";
+                    } else if (isStrictGesture1) {
                         detectedGesture = 'gesture1';
                         newRomanticMode = true;
                         statusText = "☝️ " + userConfig.msg;
