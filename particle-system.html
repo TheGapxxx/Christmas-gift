@@ -318,6 +318,9 @@
 
     <!-- Top Controls -->
     <div class="top-controls">
+        <button class="icon-btn" id="lock-btn" onclick="toggleGestureLock()">
+            <span>🔓</span> 锁定
+        </button>
         <button class="icon-btn" onclick="openSettings()">
             <span>⚙️</span> 设置
         </button>
@@ -536,6 +539,19 @@
             // }
 
             updateStatus('🎥 已恢复控制', true);
+        }
+
+        /* Lock Controls */
+        function toggleGestureLock() {
+            isGestureLocked = !isGestureLocked;
+            const btn = document.getElementById('lock-btn');
+            if (isGestureLocked) {
+                btn.innerHTML = '<span>🔒</span> 解锁';
+                updateStatus('🔒 手势已锁定 (保持当前状态)', false);
+            } else {
+                btn.innerHTML = '<span>🔓</span> 锁定';
+                updateStatus('🔓 手势解锁 (恢复控制)', true);
+            }
         }
 
         /* Music Controls */
@@ -867,6 +883,7 @@
         let targetPositions, currentPositions;
         let currentScale = CONFIG.baseScale;
         let isRomanticMode = false;
+        let isGestureLocked = false;
         let time = 0;
 
         let isDualHandMode = false;
@@ -1595,6 +1612,8 @@
         }
 
         function onHandsResults(results) {
+            if (isGestureLocked) return;
+
             // Helper for distance
             const dist = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
 
