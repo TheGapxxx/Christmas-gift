@@ -357,7 +357,7 @@
             },
             gesture3: (count) => createTextParticles("大头菜菜", count),
             gesture2: (count) => createTextParticles("我", count),
-            gesture1: (count) => createTextParticles("喜欢你", count)
+            gesture1: (count) => createTextParticles("永远爱你", count)
         };
 
         let scene, camera, renderer, particles;
@@ -1289,7 +1289,7 @@
                     } else if (isOneFinger) {
                         detectedGesture = 'gesture1';
                         newRomanticMode = true;
-                        statusText = "☝️ 喜欢你";
+                        statusText = "☝️ 永远爱你";
                     } else if (isVictory) {
                         detectedGesture = 'gesture2';
                         newRomanticMode = false;
