@@ -126,30 +126,178 @@
             font-weight: 500;
         }
 
-        .upload-btn {
+
+        /* ... existing styles ... */
+
+        /* Product UI Enhancements */
+        .top-controls {
             position: fixed;
             top: 20px;
             right: 20px;
+            display: flex;
+            gap: 12px;
+            z-index: 100;
+        }
+
+        .icon-btn {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
-            padding: 10px 20px;
+            padding: 10px 16px;
             border-radius: 20px;
-            color: rgba(255, 255, 255, 0.8);
+            color: rgba(255, 255, 255, 0.9);
             border: 1px solid rgba(255, 255, 255, 0.2);
             cursor: pointer;
-            z-index: 100;
             font-size: 14px;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            font-family: inherit;
         }
 
-        .upload-btn:hover {
+        .icon-btn:hover {
             background: rgba(255, 255, 255, 0.25);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
             color: #fff;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .modal.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background: rgba(30, 30, 35, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 24px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .modal.show .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 15px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .close-btn:hover {
+            color: #fff;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+
+        .form-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .form-input:focus {
+            border-color: #667eea;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(118, 75, 162, 0.4);
+        }
+
+        /* Help Grid */
+        .help-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .help-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .help-icon {
+            font-size: 24px;
+        }
+
+        .help-text {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
         }
     </style>
 </head>
@@ -159,14 +307,89 @@
         <div class="loading-spinner"></div>
         <div class="loading-text">正在启动AR模式...</div>
     </div>
+
+    <!-- Top Controls -->
+    <div class="top-controls">
+        <button class="icon-btn" onclick="document.getElementById('img-upload').click()">
+            <span>📂</span> 换照片
+        </button>
+        <button class="icon-btn" onclick="openSettings()">
+            <span>⚙️</span> 设置
+        </button>
+        <button class="icon-btn" onclick="openHelp()">
+            <span>❔</span> 帮助
+        </button>
+    </div>
+
+    <!-- Hidden File Input -->
     <input type="file" id="img-upload" multiple accept="image/*" style="display: none;"
         onchange="handleImageUpload(this)">
-    <button class="upload-btn" onclick="document.getElementById('img-upload').click()">
-        <span>📂</span> 换照片
-    </button>
 
     <video id="video" autoplay playsinline muted></video>
     <div id="canvas-container"></div>
+    <div id="status">
+        <span class="status-indicator"></span>
+        <span id="status-text">初始化中...</span>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">个性化定制</div>
+                <button class="close-btn" onclick="closeModal('settings-modal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">表白对象名字 (OK手势👌)</label>
+                <input type="text" id="input-name" class="form-input" placeholder="例如: 大头菜菜">
+            </div>
+            <div class="form-group">
+                <label class="form-label">表白话语 (食指☝️)</label>
+                <input type="text" id="input-msg" class="form-input" placeholder="例如: 永远爱你">
+            </div>
+            <div class="form-group">
+                <label class="form-label">自称/署名 (剪刀手✌️)</label>
+                <input type="text" id="input-me" class="form-input" placeholder="例如: 我">
+            </div>
+            <button class="btn-primary" onclick="saveSettings()">保存配置</button>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">手势操作指南</div>
+                <button class="close-btn" onclick="closeModal('help-modal')">&times;</button>
+            </div>
+            <div class="help-grid">
+                <div class="help-item">
+                    <span class="help-icon">🖐️</span>
+                    <span class="help-text">张开手<br>满天星/照片墙</span>
+                </div>
+                <div class="help-item">
+                    <span class="help-icon">✊</span>
+                    <span class="help-text">握拳<br>圣诞树特效</span>
+                </div>
+                <div class="help-item">
+                    <span class="help-icon">☝️</span>
+                    <span class="help-text">食指<br>展示表白话语</span>
+                </div>
+                <div class="help-item">
+                    <span class="help-icon">✌️</span>
+                    <span class="help-text">剪刀手<br>展示署名</span>
+                </div>
+                <div class="help-item">
+                    <span class="help-icon">👌</span>
+                    <span class="help-text">OK手势<br>展示对象名字</span>
+                </div>
+                <div class="help-item">
+                    <span class="help-icon">🫰</span>
+                    <span class="help-text">比心/捏合<br>爱心特效</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
 
 
@@ -174,6 +397,72 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"></script>
 
     <script>
+        // Product: Load User Configuration
+        let userConfig = {
+            targetName: "大头菜菜",
+            msg: "永远爱你",
+            me: "我"
+        };
+
+        function loadConfig() {
+            const saved = localStorage.getItem('ar_particle_config');
+            if (saved) {
+                try {
+                    userConfig = { ...userConfig, ...JSON.parse(saved) };
+                } catch (e) {
+                    console.error("Config load error", e);
+                }
+            }
+            // Populate inputs
+            const iName = document.getElementById('input-name');
+            const iMsg = document.getElementById('input-msg');
+            const iMe = document.getElementById('input-me');
+            if (iName) iName.value = userConfig.targetName;
+            if (iMsg) iMsg.value = userConfig.msg;
+            if (iMe) iMe.value = userConfig.me;
+        }
+
+        function saveSettings() {
+            const iName = document.getElementById('input-name');
+            const iMsg = document.getElementById('input-msg');
+            const iMe = document.getElementById('input-me');
+
+            if (iName && iName.value.trim()) userConfig.targetName = iName.value.trim();
+            if (iMsg && iMsg.value.trim()) userConfig.msg = iMsg.value.trim();
+            if (iMe && iMe.value.trim()) userConfig.me = iMe.value.trim();
+
+            localStorage.setItem('ar_particle_config', JSON.stringify(userConfig));
+            closeModal('settings-modal');
+
+            // Force refresh if currently showing text
+            if (currentModel === 'gesture3' || currentModel === 'gesture2' || currentModel === 'gesture1') {
+                targetPositions = Models[currentModel](CONFIG.particleCount);
+            }
+
+            updateStatus('✅ 配置已保存', true);
+            setTimeout(() => updateStatus('🎥 AR模式就绪', true), 2000);
+        }
+
+        function openSettings() {
+            loadConfig(); // Reload to ensure inputs match current config
+            document.getElementById('settings-modal').classList.add('show');
+        }
+
+        function openHelp() {
+            document.getElementById('help-modal').classList.add('show');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('show');
+        }
+
+        // click outside to close
+        window.onclick = function (event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('show');
+            }
+        }
+
         const CONFIG = {
             particleCount: 15000,
             baseScale: 1.0,
@@ -188,6 +477,7 @@
             treeBrownColor: new THREE.Color('#92400e'),
             coinGoldColor: new THREE.Color('#ffd700')
         };
+
 
         function createTextParticles(text, count) {
             const canvas = document.createElement('canvas');
@@ -355,9 +645,9 @@
                 }
                 return new Float32Array(positions);
             },
-            gesture3: (count) => createTextParticles("大头菜菜", count),
-            gesture2: (count) => createTextParticles("我", count),
-            gesture1: (count) => createTextParticles("永远爱你", count)
+            gesture3: (count) => createTextParticles(userConfig.targetName, count),
+            gesture2: (count) => createTextParticles(userConfig.me, count),
+            gesture1: (count) => createTextParticles(userConfig.msg, count)
         };
 
         let scene, camera, renderer, particles;
@@ -1281,7 +1571,7 @@
                     if (isMiddleExt && isRingExt && isPinkyExt) {
                         detectedGesture = 'gesture3';
                         newRomanticMode = false;
-                        statusText = "👌 大头菜菜";
+                        statusText = "👌 " + userConfig.targetName;
                     } else if (isCurled(12, 10) && isCurled(16, 14) && isCurled(20, 18)) {
                         detectedGesture = 'heart';
                         newRomanticMode = true;
@@ -1305,11 +1595,11 @@
                     } else if (isOneFinger) {
                         detectedGesture = 'gesture1';
                         newRomanticMode = true;
-                        statusText = "☝️ 永远爱你";
+                        statusText = "☝️ " + userConfig.msg;
                     } else if (isVictory) {
                         detectedGesture = 'gesture2';
                         newRomanticMode = false;
-                        statusText = "✌️ 我";
+                        statusText = "✌️ " + userConfig.me;
                     } else if (extendedCount >= 4) {
                         detectedGesture = 'idle';
                         newRomanticMode = false;
@@ -1421,6 +1711,7 @@
 
         async function init() {
             try {
+                loadConfig();
                 initThreeJS();
                 await initMediaPipe();
 
