@@ -318,18 +318,12 @@
 
     <!-- Top Controls -->
     <div class="top-controls">
-        <button class="icon-btn" onclick="document.getElementById('img-upload').click()">
-            <span>📂</span> 换照片
-        </button>
         <button class="icon-btn" onclick="openSettings()">
             <span>⚙️</span> 设置
         </button>
-        <button class="icon-btn" onclick="openHelp()">
-            <span>❔</span> 帮助
-        </button>
         <button class="icon-btn" id="music-btn" onclick="toggleMusic()"><span>🔇</span></button>
         <button class="icon-btn" onclick="enterImmersive()">
-            <span>👁️</span> 沉浸
+            <span>✨</span> 沉浸
         </button>
     </div>
 
@@ -355,6 +349,18 @@
                 <div class="modal-title">个性化定制</div>
                 <button class="close-btn" onclick="closeModal('settings-modal')">&times;</button>
             </div>
+
+            <div style="margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button class="btn-primary" onclick="document.getElementById('img-upload').click()"
+                    style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                    <span>📂</span> 更换照片墙
+                </button>
+                <button class="btn-primary" onclick="openHelp()"
+                    style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                    <span>❔</span> 查看手势帮助
+                </button>
+            </div>
+
             <div class="form-group">
                 <label class="form-label">表白对象名字 (OK手势👌)</label>
                 <input type="text" id="input-name" class="form-input" placeholder="例如: 大头菜菜">
@@ -383,35 +389,60 @@
 
     <!-- Help Modal -->
     <div id="help-modal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
-                <div class="modal-title">手势操作指南</div>
+                <div class="modal-title">✨ 魔法手势指南 ✨</div>
                 <button class="close-btn" onclick="closeModal('help-modal')">&times;</button>
             </div>
             <div class="help-grid">
                 <div class="help-item">
                     <span class="help-icon">🖐️</span>
-                    <span class="help-text">张开手<br>满天星/照片墙</span>
+                    <div>
+                        <div style="font-weight:bold; margin-bottom:4px;">召唤满天星与回忆</div>
+                        <span class="help-text">五指张开，唤醒满天星光。靠近镜头，照片墙将为你浮现。</span>
+                    </div>
                 </div>
                 <div class="help-item">
                     <span class="help-icon">✊</span>
-                    <span class="help-text">握拳<br>圣诞树特效</span>
+                    <div>
+                        <div style="font-weight:bold; margin-bottom:4px;">变出圣诞树</div>
+                        <span class="help-text">单手握拳，凝聚星光汇聚成一颗璀璨的圣诞树。</span>
+                    </div>
                 </div>
                 <div class="help-item">
                     <span class="help-icon">☝️</span>
-                    <span class="help-text">食指<br>展示表白话语</span>
+                    <div>
+                        <div style="font-weight:bold; margin-bottom:4px;">爱的宣言</div>
+                        <span class="help-text">竖起食指，展示你对 Ta 永远的爱意文字。</span>
+                    </div>
                 </div>
                 <div class="help-item">
                     <span class="help-icon">✌️</span>
-                    <span class="help-text">剪刀手<br>展示署名</span>
+                    <div>
+                        <div style="font-weight:bold; margin-bottom:4px;">署名/胜利</div>
+                        <span class="help-text">比出剪刀手，留下你的专属署名。</span>
+                    </div>
                 </div>
                 <div class="help-item">
                     <span class="help-icon">👌</span>
-                    <span class="help-text">OK手势<br>展示对象名字</span>
+                    <div>
+                        <div style="font-weight:bold; margin-bottom:4px;">呼唤 Ta 的名字</div>
+                        <span class="help-text">比出 OK 手势，将 Ta 的名字写在星空中。</span>
+                    </div>
                 </div>
                 <div class="help-item">
                     <span class="help-icon">🫰</span>
-                    <span class="help-text">比心/捏合<br>爱心特效</span>
+                    <div>
+                        <div style="font-weight:bold; margin-bottom:4px;">比心发射</div>
+                        <span class="help-text">单手拇指食指比心，或三指捏合，发射爱心特效。</span>
+                    </div>
+                </div>
+                <div class="help-item" style="grid-column: span 2;">
+                    <span class="help-icon">👐</span>
+                    <div>
+                        <div style="font-weight:bold; margin-bottom:4px;">双手画廊模式</div>
+                        <span class="help-text">同时举起双手，进入沉浸式画廊。控制双手距离可左右滑动浏览照片，右手握拳可放大查看，左手握拳可加速滑动。</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -487,7 +518,7 @@
                 });
             }
 
-            updateStatus('👀 已进入沉浸模式 | 双击屏幕退出', true);
+            updateStatus('✨ 已进入沉浸模式 | 双击屏幕退出', true);
 
             // 延迟添加监听防止连点
             setTimeout(() => {
@@ -1244,9 +1275,11 @@
         `;
 
         // 片元着色器 - 支持图集和反光
+        // 片元着色器 - 支持图集和反光
         const fragmentShader = `
             uniform sampler2D uTexture;
             uniform float uTime;
+            uniform float uModel;
             varying vec3 vColor;
             varying float vShapeIndex;
             varying float vAlpha;
@@ -1255,31 +1288,24 @@
                 float index = floor(vShapeIndex + 0.5);
                 vec2 uv = gl_PointCoord;
                 
-                // 星星(Index 9)自转逻辑：与圣诞树反方向旋转
-                // 圣诞树是绕Y轴转，星星作为2D贴图，我们让它进行2D自转来实现视觉上的旋转感
+                // 星星(Index 9)自转逻辑
                 if (abs(index - 9.0) < 0.1) {
                      vec2 center = vec2(0.5);
-                     // 树是顺时针(正向angle)，星星就逆时针(负向angle)
-                     // 调整速度让它看起来优雅
                      float angle = uTime * 1.0; 
                      float s = sin(angle);
                      float c = cos(angle);
                      vec2 centered = uv - center;
-                     // 旋转矩阵
                      uv = vec2(
                          centered.x * c - centered.y * s,
                          centered.x * s + centered.y * c
                      ) + center;
-                     
-                     // 旋转后如果超出[0,1]范围则丢弃，防止显示出邻近的图标
                      if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) discard;
                 }
 
                 // 计算当前粒子在图集中的UV
                 float col = mod(index, 4.0);
-                float row = 3.0 - floor(index / 4.0); // flipY handled in JS, but grid is top-down usually
+                float row = 3.0 - floor(index / 4.0); 
                 
-                // 映射到图集坐标
                 vec2 finalUV = uv;
                 finalUV.x = (finalUV.x + col) / 4.0;
                 finalUV.y = (finalUV.y + row) / 4.0;
@@ -1290,23 +1316,25 @@
 
                 // 反光效果 (Sheen)
                 float sheen = 0.0;
-                if (index > 0.5) { // 对Emoji添加流光
-                     // 星星的流光也跟随旋转稍微变动一下
+                if (index > 0.5) { 
                      float sheenPos = (uv.x + uv.y) * 3.0 - uTime * 3.0;
                      sheen = max(0.0, sin(sheenPos)) * 0.3;
                 }
 
-                // 星星(index 9)发光特效
                 vec3 finalColor = vColor + sheen;
                 float alpha = texColor.a * vAlpha * 0.95;
 
+                // 星星(index 9)发光特效
                 if (abs(index - 9.0) < 0.1) {
-                    // 星星发光增强
-                    float glow = 0.5 + 0.5 * sin(uTime * 3.0); // 强烈的呼吸光
-                    finalColor += vec3(0.5, 0.4, 0.1) * glow; // 金色光晕叠加
-                    
-                    // 核心更亮
+                    float glow = 0.5 + 0.5 * sin(uTime * 3.0); 
+                    finalColor += vec3(0.5, 0.4, 0.1) * glow; 
                     finalColor *= 1.5;
+                }
+                
+                // [New] 针对"永远爱你" (uModel 1.0) 额外增强亮度
+                // 1.0 = gesture1 (Msg), 2.0 = gesture2 (Me), 3.0 = gesture3 (Target)
+                if (abs(uModel - 1.0) < 0.1) {
+                    finalColor *= 1.8; // Shader级强力提亮
                 }
 
                 gl_FragColor = vec4(finalColor, alpha);
@@ -1361,6 +1389,7 @@
                     uTime: { value: 0 },
                     uScale: { value: 1.0 },
                     uHandDepth: { value: 1.0 },
+                    uModel: { value: 0.0 },
                     uTexture: { value: createTextureAtlas() }
                 },
                 vertexShader: vertexShader,
@@ -1410,7 +1439,20 @@
 
             // Update Uniforms
             particles.material.uniforms.uTime.value = time;
-            particles.material.uniforms.uHandDepth.value = handDepth * (isRomanticMode ? 1.1 : 1.0);
+
+            // Logic: User wants "gesture1" to start at brightness equivalent to Depth 87%
+            let depthVal = handDepth * (isRomanticMode ? 1.1 : 1.0);
+            if (currentModel === 'gesture1') {
+                depthVal = Math.max(0.87, depthVal); // Force min brightness
+            }
+            particles.material.uniforms.uHandDepth.value = depthVal;
+
+            // Pass Model ID to Shader for Specific Effects
+            let modelId = 0.0;
+            if (currentModel === 'gesture1') modelId = 1.0;
+            else if (currentModel === 'gesture2') modelId = 2.0;
+            else if (currentModel === 'gesture3') modelId = 3.0;
+            particles.material.uniforms.uModel.value = modelId;
 
             // Color Logic (Optimized)
             if (currentModel === 'tree') {
@@ -1480,6 +1522,13 @@
                         targetR = activeColor.r;
                         targetG = activeColor.g;
                         targetB = activeColor.b;
+
+                        // 增强“永远爱你” (gesture1) 的初始亮度
+                        if (currentModel === 'gesture1') {
+                            targetR *= 1.5;
+                            targetG *= 1.5;
+                            targetB *= 1.5;
+                        }
                     }
 
                     colors[i * 3] += (targetR - colors[i * 3]) * 0.1;
