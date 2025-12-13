@@ -140,11 +140,40 @@
             transition: opacity 0.5s ease;
         }
 
+        /* Immersive Mode Core - Hide UI */
         body.immersive .top-controls,
-        body.immersive #status,
-        body.immersive #video {
+        body.immersive #status {
             opacity: 0 !important;
             pointer-events: none;
+        }
+
+        /* Global Camera Mode (Always Fullscreen Background) */
+        body.mode-camera #video {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            border-radius: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            z-index: 0 !important;
+            /* Behind particles */
+            transform: scaleX(-1);
+            opacity: 1 !important;
+            /* Filter is set via JS */
+        }
+
+        /* Hide Video in Immersive Mode if NOT in Camera Mode (i.e. Black Mode) */
+        body.immersive:not(.mode-camera) #video {
+            opacity: 0 !important;
+            pointer-events: none;
+        }
+
+        /* Ensure Canvas is above video in AR mode */
+        #canvas-container {
+            /* ... existing ... */
+            z-index: 1;
         }
 
         .icon-btn {
@@ -419,6 +448,32 @@
                     <span id="bgm-status" style="font-size: 12px; color: rgba(255,255,255,0.5);">未选择</span>
                 </div>
             </div>
+            <div class="form-group">
+                <label class="form-label">沉浸模式背景</label>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; gap: 15px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer;">
+                            <input type="radio" name="immersive-mode" value="black" checked
+                                onchange="toggleBrightnessSlider()"> 纯黑背景
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer;">
+                            <input type="radio" name="immersive-mode" value="camera"
+                                onchange="toggleBrightnessSlider()"> 摄像头背景
+                        </label>
+                    </div>
+
+                    <!-- Brightness Slider (Hidden by default) -->
+                    <div id="brightness-control" style="display: none; padding-left: 5px; margin-top: 5px;">
+                        <div
+                            style="display: flex; justify-content: space-between; font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 5px;">
+                            <span>背景亮度 (越低越突出特效)</span>
+                            <span id="brightness-val">40%</span>
+                        </div>
+                        <input type="range" id="input-brightness" min="10" max="100" value="40" step="5"
+                            style="width: 100%; accent-color: #667eea;" oninput="updateBrightnessLive(this.value)">
+                    </div>
+                </div>
+            </div>
             <button class="btn-primary" onclick="saveSettings()">保存配置</button>
         </div>
     </div>
@@ -522,7 +577,9 @@
         let userConfig = {
             targetName: "宝宝",
             msg: "永远爱你",
-            me: "我"
+            me: "我",
+            immersiveMode: "black", // 'black' or 'camera'
+            cameraBrightness: 0.4 // 0.1 to 1.0
         };
 
         function loadConfig() {
@@ -541,6 +598,19 @@
             if (iName) iName.value = userConfig.targetName;
             if (iMsg) iMsg.value = userConfig.msg;
             if (iMe) iMe.value = userConfig.me;
+
+            // Populate Radio & Slider
+            const radios = document.getElementsByName('immersive-mode');
+            for (let r of radios) {
+                if (r.value === userConfig.immersiveMode) r.checked = true;
+            }
+
+            const iBright = document.getElementById('input-brightness');
+            if (iBright) {
+                iBright.value = Math.round(userConfig.cameraBrightness * 100);
+                document.getElementById('brightness-val').innerText = iBright.value + '%';
+            }
+            toggleBrightnessSlider(); // Init visibility
         }
 
         function saveSettings() {
@@ -552,7 +622,20 @@
             if (iMsg && iMsg.value.trim()) userConfig.msg = iMsg.value.trim();
             if (iMe && iMe.value.trim()) userConfig.me = iMe.value.trim();
 
+            const radios = document.getElementsByName('immersive-mode');
+            let selectedMode = 'black';
+            for (let r of radios) {
+                if (r.checked) selectedMode = r.value;
+            }
+            userConfig.immersiveMode = selectedMode;
+
+            const iBright = document.getElementById('input-brightness');
+            if (iBright) {
+                userConfig.cameraBrightness = parseInt(iBright.value) / 100.0;
+            }
+
             localStorage.setItem('ar_particle_config', JSON.stringify(userConfig));
+            applyBackgroundMode(); // Apply immediately
             closeModal('settings-modal');
 
             // Force refresh if currently showing text
@@ -613,8 +696,53 @@
             document.getElementById('help-modal').classList.add('show');
         }
 
+        function toggleBrightnessSlider() {
+            const radios = document.getElementsByName('immersive-mode');
+            let isCamera = false;
+            for (let r of radios) {
+                if (r.checked && r.value === 'camera') isCamera = true;
+            }
+            const slider = document.getElementById('brightness-control');
+            if (slider) slider.style.display = isCamera ? 'block' : 'none';
+        }
+
+        function updateBrightnessLive(val) {
+            document.getElementById('brightness-val').innerText = val + '%';
+            userConfig.cameraBrightness = parseInt(val) / 100.0;
+            // Apply if currently in camera mode
+            if (userConfig.immersiveMode === 'camera') {
+                applyBackgroundMode();
+            }
+        }
+
+        function applyBackgroundMode() {
+            const video = document.getElementById('video');
+            if (!video) return;
+
+            if (userConfig.immersiveMode === 'camera') {
+                document.body.classList.add('mode-camera');
+                video.style.filter = `brightness(${userConfig.cameraBrightness}) contrast(1.1)`;
+            } else {
+                document.body.classList.remove('mode-camera');
+                video.style.filter = ''; // Reset
+            }
+        }
+
         function enterImmersive() {
             document.body.classList.add('immersive');
+
+            // Add specific mode class
+            if (userConfig.immersiveMode === 'camera') {
+                document.body.classList.add('immersive-camera');
+                // Apply brightness dynamically
+                const video = document.getElementById('video');
+                if (video) {
+                    video.style.filter = `brightness(${userConfig.cameraBrightness}) contrast(1.1)`;
+                }
+            } else {
+                document.body.classList.add('immersive-black');
+            }
+
             // User requested to disable actual fullscreen to prevent lag
             /* 
             if (document.documentElement.requestFullscreen) {
@@ -1640,8 +1768,8 @@
 
                 if (currentModel === 'heart' || currentModel === 'gesture1') {
                     activeColor = CONFIG.romanticColor;
-                } else if (currentModel === 'idle' && handDepth > 1.2) {
-                    // 满天星(idle)且手掌靠近(handDepth大) -> 圣诞氛围
+                } else if ((currentModel === 'idle' && handDepth > 1.2) || currentModel === 'gesture2' || currentModel === 'gesture3') {
+                    // 满天星(idle)且手掌靠近 -> 圣诞氛围 | "我" & "大头菜菜" -> 彩色圣诞风格
                     isChristmasVibe = true;
                 }
 
@@ -1666,9 +1794,13 @@
                         }
 
                         // 亮度增强 (Overdrive)
-                        targetR = c.r * 1.8;
-                        targetG = c.g * 1.8;
-                        targetB = c.b * 1.8;
+                        let brightnessBoost = 1.8;
+                        if (currentModel === 'gesture2' || currentModel === 'gesture3') {
+                            brightnessBoost = 1.0; // 文字稍微暗一点，更柔和
+                        }
+                        targetR = c.r * brightnessBoost;
+                        targetG = c.g * brightnessBoost;
+                        targetB = c.b * brightnessBoost;
                     } else {
                         targetR = activeColor.r;
                         targetG = activeColor.g;
@@ -2113,6 +2245,7 @@
                 loadConfig();
                 initThreeJS();
                 await initMediaPipe();
+                applyBackgroundMode(); // Init Background
 
                 const loading = document.getElementById('loading');
                 if (loading) loading.style.display = 'none';
