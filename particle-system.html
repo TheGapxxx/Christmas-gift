@@ -1176,6 +1176,11 @@
                         sprite.material.map = texture;
                         sprite.material.needsUpdate = true;
                         sprite.visible = true;
+
+                        // Calculate Aspect Ratio
+                        if (texture.image && texture.image.width && texture.image.height) {
+                            sprite.userData.aspectRatio = texture.image.width / texture.image.height;
+                        }
                     },
                     undefined,
                     (err) => {
@@ -1185,14 +1190,15 @@
                     }
                 );
 
-                sprite.scale.set(0.4, 0.6, 1);
+                sprite.scale.set(0.4, 0.6, 1); // Initial placeholder
                 sprite.userData = {
                     id: i,
                     angleOffset: (i / imageUrls.length) * Math.PI * 2,
                     isSelected: false,
                     isZoomed: false,
                     targetScale: 0.4,
-                    zoomEffect: 0 // Store random effect type
+                    zoomEffect: 0,
+                    aspectRatio: 0.66 // Default fallback (Poster 2:3)
                 };
                 imageGroup.add(sprite);
                 floatingImages.push(sprite);
@@ -1381,9 +1387,22 @@
                 sprite.position.lerp(targetPos, 0.08);
 
                 // Scale Update
+                // Scale Update
                 const currentS = sprite.scale.x;
                 const newS = currentS + (targetScale - currentS) * 0.1;
-                sprite.scale.set(newS, newS * 1.5, 1);
+
+                // Apply Aspect Ratio
+                const aspect = sprite.userData.aspectRatio || 0.66;
+                // Normalize size: Ensure neither width nor height is too massive relative to 'newS'
+                // Actually 'newS' is roughly 'Width'. 
+                // Let's constrain scale based on max dimension to keep visual weight consistent
+                // if aspect > 1 (Landscape), Width controls size. H = W / aspect.
+                // if aspect < 1 (Portrait), Height controls size? 
+                // Let's just map 'newS' to the 'Max Dimension' logic or just Keep Width Fixed logic?
+                // The prompt asks to MAINTAIN aspect ratio.
+                // Previously: scale.set(newS, newS * 1.5, 1) -> Implies Height = Width * 1.5. Aspect = 0.66.
+
+                sprite.scale.set(newS, newS / aspect, 1);
 
                 // Opacity Update (Smooth Fade)
                 // 解决淡如淡出太快的问题，用较小的系数 0.05
