@@ -569,8 +569,30 @@
 
 
 
-    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"></script>
+    <!-- 使用国内可访问的CDN镜像 - 避免广告拦截器干扰 -->
+    <script src="https://gitee.com/amluck/three.js/raw/master/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"
+        crossorigin="anonymous"></script>
+
+    <script>
+        // CDN加载检测 - 在页面初始化前检查依赖库
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('=== CDN资源加载检测 ===');
+            console.log('Three.js 加载状态:', typeof THREE !== 'undefined' ? '✅ 成功' : '❌ 失败');
+            console.log('MediaPipe 加载状态:', typeof Hands !== 'undefined' ? '✅ 成功' : '❌ 失败');
+
+            if (typeof THREE === 'undefined') {
+                console.error('⚠️ Three.js 未加载！可能原因：网络问题或CDN不可访问');
+            }
+            if (typeof Hands === 'undefined') {
+                console.error('⚠️ MediaPipe 未加载！可能原因：网络问题或CDN不可访问');
+            }
+
+            if (typeof THREE !== 'undefined' && typeof Hands !== 'undefined') {
+                console.log('✅ 所有依赖库加载成功，系统准备就绪');
+            }
+        });
+    </script>
 
     <script>
         // Product: Load User Configuration
@@ -1857,39 +1879,58 @@
         let hands;
 
         async function initMediaPipe() {
-            hands = new Hands({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`
-            });
+            // 模型加载超时检测
+            const modelLoadTimeout = setTimeout(() => {
+                console.error('MediaPipe模型加载超时（超过15秒）');
+                updateStatus('⚠️ 模型加载超时，请检查网络连接', false);
+            }, 15000);
 
-            hands.setOptions({
-                maxNumHands: 2, // Enable 2 hands
-                modelComplexity: 1,
-                minDetectionConfidence: 0.7,
-                minTrackingConfidence: 0.7
-            });
-
-            hands.onResults(onHandsResults);
-
-            const videoElement = document.getElementById('video');
             try {
+                hands = new Hands({
+                    locateFile: (file) => {
+                        const url = `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`;
+                        console.log('Loading MediaPipe file:', file, 'from', url);
+                        return url;
+                    }
+                });
+
+                hands.setOptions({
+                    maxNumHands: 2, // Enable 2 hands
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.7,
+                    minTrackingConfidence: 0.7
+                });
+
+                hands.onResults(onHandsResults);
+
+                const videoElement = document.getElementById('video');
+                updateStatus('📡 正在请求摄像头权限...', true);
+
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { width: 1280, height: 720, facingMode: 'user' }
                 });
+
                 videoElement.srcObject = stream;
                 await new Promise(resolve => videoElement.onloadedmetadata = () => {
                     videoElement.play();
                     resolve();
                 });
 
+                updateStatus('🔄 正在加载手势识别模型...', true);
+
                 async function sendFrame() {
                     await hands.send({ image: videoElement });
                     requestAnimationFrame(sendFrame);
                 }
                 sendFrame();
+
+                clearTimeout(modelLoadTimeout);
                 updateStatus('🎥 AR模式就绪 - 请展示手势', true);
             } catch (error) {
+                clearTimeout(modelLoadTimeout);
                 console.error('摄像头错误:', error);
-                updateStatus('摄像头访问失败', false);
+                updateStatus('❌ 摄像头访问失败: ' + error.message, false);
+                throw error;
             }
         }
 
@@ -2261,6 +2302,14 @@
 
         async function init() {
             try {
+                // 检查依赖库是否加载成功
+                if (typeof THREE === 'undefined') {
+                    throw new Error('Three.js 库加载失败，请检查网络连接或使用完全离线版本');
+                }
+                if (typeof Hands === 'undefined') {
+                    throw new Error('MediaPipe 库加载失败，请检查网络连接或使用完全离线版本');
+                }
+
                 loadConfig();
                 initThreeJS();
                 await initMediaPipe();
@@ -2272,6 +2321,18 @@
                 animate();
             } catch (error) {
                 console.error('初始化失败:', error);
+                const loading = document.getElementById('loading');
+                if (loading) {
+                    loading.innerHTML = `
+                        <div class="loading-spinner" style="border-top-color: #ef4444;"></div>
+                        <div class="loading-text" style="color: #ef4444; max-width: 500px; text-align: center;">
+                            ❌ 初始化失败<br>
+                            <span style="font-size: 14px; color: rgba(255,255,255,0.7); margin-top: 10px; display: block;">
+                                ${error.message}
+                            </span>
+                        </div>
+                    `;
+                }
             }
         }
 
