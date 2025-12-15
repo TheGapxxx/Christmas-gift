@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D粒子交互系统 - AR模式</title>
+    <title>3D粒子交互系统 - 尝鲜版</title>
     <style>
         * {
             margin: 0;
@@ -336,40 +336,6 @@
             font-size: 14px;
             color: rgba(255, 255, 255, 0.8);
         }
-
-        /* Effects Dropdown */
-        #effects-dropdown {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            background: rgba(30, 30, 35, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 15px;
-            width: 320px;
-            display: none;
-            z-index: 1000;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
-            transform-origin: top right;
-        }
-
-        #effects-dropdown.show {
-            display: block;
-            animation: dropdownEnter 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        @keyframes dropdownEnter {
-            from {
-                opacity: 0;
-                transform: scale(0.9) translateY(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: scale(1) translateY(0);
-            }
-        }
     </style>
 </head>
 
@@ -380,25 +346,15 @@
     </div>
 
     <div class="top-controls">
-        <button class="icon-btn" onclick="toggleEffectsPanel()">
-            <span>🎨</span> 特效
-        </button>
         <button class="icon-btn" onclick="openSettings()">
             <span>⚙️</span> 设置
-        </button>
-        <button class="icon-btn" id="music-btn" onclick="toggleMusic()"><span>🔇</span></button>
-        <button class="icon-btn" onclick="enterImmersive()">
-            <span>✨</span> 沉浸
         </button>
     </div>
 
     <!-- Hidden File Inputs -->
     <input type="file" id="img-upload" multiple accept="image/*" style="display: none;"
         onchange="handleImageUpload(this)">
-    <input type="file" id="bgm-upload" accept="audio/*" style="display: none;" onchange="handleMusicUpload(this)">
 
-    <!-- Audio Element -->
-    <audio id="bgm" loop></audio>
 
     <video id="video" autoplay playsinline muted></video>
     <div id="canvas-container"></div>
@@ -426,85 +382,14 @@
                 </button>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">表白对象名字 (OK手势👌)</label>
-                <input type="text" id="input-name" class="form-input" placeholder="例如: 宝宝">
-            </div>
-            <div class="form-group">
-                <label class="form-label">表白话语 (食指☝️)</label>
-                <input type="text" id="input-msg" class="form-input" placeholder="例如: 永远爱你">
-            </div>
-            <div class="form-group">
-                <label class="form-label">自称/署名 (剪刀手✌️)</label>
-                <input type="text" id="input-me" class="form-input" placeholder="例如: 我">
-            </div>
-            <div class="form-group">
-                <label class="form-label">背景音乐 🎵</label>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <button class="icon-btn" onclick="document.getElementById('bgm-upload').click()"
-                        style="flex: 1; justify-content: center;">
-                        <span>📂</span> 上传音乐
-                    </button>
-                    <span id="bgm-status" style="font-size: 12px; color: rgba(255,255,255,0.5);">未选择</span>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">沉浸模式背景</label>
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <div style="display: flex; gap: 15px;">
-                        <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer;">
-                            <input type="radio" name="immersive-mode" value="black" checked
-                                onchange="toggleBrightnessSlider()"> 纯黑背景
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer;">
-                            <input type="radio" name="immersive-mode" value="camera"
-                                onchange="toggleBrightnessSlider()"> 摄像头背景
-                        </label>
-                    </div>
 
-                    <!-- Brightness Slider (Hidden by default) -->
-                    <div id="brightness-control" style="display: none; padding-left: 5px; margin-top: 5px;">
-                        <div
-                            style="display: flex; justify-content: space-between; font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 5px;">
-                            <span>背景亮度 (越低越突出特效)</span>
-                            <span id="brightness-val">40%</span>
-                        </div>
-                        <input type="range" id="input-brightness" min="10" max="100" value="40" step="5"
-                            style="width: 100%; accent-color: #667eea;" oninput="updateBrightnessLive(this.value)">
-                    </div>
-                </div>
-            </div>
-            <button class="btn-primary" onclick="saveSettings()">保存配置</button>
+
         </div>
+        <button class="btn-primary" onclick="saveSettings()">保存配置</button>
+    </div>
     </div>
 
-    <!-- Effects Dropdown Panel -->
-    <div id="effects-dropdown">
-        <div style="font-size:14px; color:rgba(255,255,255,0.5); margin-bottom:10px;">选择特效 (自动锁定)</div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <button class="btn-primary" onclick="selectManualEffect('idle')"
-                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); font-size:14px;">🌌
-                满天星</button>
-            <button class="btn-primary" onclick="selectManualEffect('tree')"
-                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); font-size:14px;">🎄
-                圣诞树</button>
-            <button class="btn-primary" onclick="selectManualEffect('heart')"
-                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); font-size:14px;">❤️
-                爱心特效</button>
-            <button class="btn-primary" onclick="selectManualEffect('gesture1')"
-                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); font-size:14px;">☝️
-                爱的宣言</button>
-            <button class="btn-primary" onclick="selectManualEffect('gesture2')"
-                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); font-size:14px;">✌️
-                专属署名</button>
-            <button class="btn-primary" onclick="selectManualEffect('gesture3')"
-                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); font-size:14px;">👌
-                对象名字</button>
-            <button class="btn-primary" onclick="unlockAndResume()" style="grid-column: span 2; margin-top: 5px;">
-                🔓 恢复/解锁手势
-            </button>
-        </div>
-    </div>
+
 
     <!-- Help Modal -->
     <div id="help-modal" class="modal">
@@ -528,58 +413,41 @@
                         <span class="help-text">单手握拳，凝聚星光汇聚成一颗璀璨的圣诞树。</span>
                     </div>
                 </div>
-                <div class="help-item">
-                    <span class="help-icon">☝️</span>
-                    <div>
-                        <div style="font-weight:bold; margin-bottom:4px;">爱的宣言</div>
-                        <span class="help-text">竖起食指，展示你对 Ta 永远的爱意文字。</span>
-                    </div>
-                </div>
-                <div class="help-item">
-                    <span class="help-icon">✌️</span>
-                    <div>
-                        <div style="font-weight:bold; margin-bottom:4px;">署名/胜利</div>
-                        <span class="help-text">比出剪刀手，留下你的专属署名。</span>
-                    </div>
-                </div>
-                <div class="help-item">
-                    <span class="help-icon">👌</span>
-                    <div>
-                        <div style="font-weight:bold; margin-bottom:4px;">呼唤 Ta 的名字</div>
-                        <span class="help-text">比出 OK 手势，将 Ta 的名字写在星空中。</span>
-                    </div>
-                </div>
-                <div class="help-item">
-                    <span class="help-icon">🫰</span>
-                    <div>
-                        <div style="font-weight:bold; margin-bottom:4px;">比心发射</div>
-                        <span class="help-text">单手拇指食指比心，或三指捏合，发射爱心特效。</span>
-                    </div>
-                </div>
-                <div class="help-item" style="grid-column: span 2;">
-                    <span class="help-icon">👐</span>
-                    <div>
-                        <div style="font-weight:bold; margin-bottom:4px;">双手画廊模式</div>
-                        <span class="help-text">同时举起双手，进入沉浸式画廊。控制双手距离可左右滑动浏览照片，右手握拳可放大查看，左手握拳可加速滑动。</span>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
 
 
 
-    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"></script>
+    <!-- 使用国内可访问的CDN镜像 - 避免广告拦截器干扰 -->
+    <script src="https://gitee.com/amluck/three.js/raw/master/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"
+        crossorigin="anonymous"></script>
+
+    <script>
+        // CDN加载检测 - 在页面初始化前检查依赖库
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('=== CDN资源加载检测 ===');
+            console.log('Three.js 加载状态:', typeof THREE !== 'undefined' ? '✅ 成功' : '❌ 失败');
+            console.log('MediaPipe 加载状态:', typeof Hands !== 'undefined' ? '✅ 成功' : '❌ 失败');
+
+            if (typeof THREE === 'undefined') {
+                console.error('⚠️ Three.js 未加载！可能原因：网络问题或CDN不可访问');
+            }
+            if (typeof Hands === 'undefined') {
+                console.error('⚠️ MediaPipe 未加载！可能原因：网络问题或CDN不可访问');
+            }
+
+            if (typeof THREE !== 'undefined' && typeof Hands !== 'undefined') {
+                console.log('✅ 所有依赖库加载成功，系统准备就绪');
+            }
+        });
+    </script>
 
     <script>
         // Product: Load User Configuration
         let userConfig = {
-            targetName: "宝宝",
-            msg: "永远爱你",
-            me: "我",
-            immersiveMode: "black", // 'black' or 'camera'
-            cameraBrightness: 0.4 // 0.1 to 1.0
+            // simplified config
         };
 
         function loadConfig() {
@@ -591,183 +459,30 @@
                     console.error("Config load error", e);
                 }
             }
-            // Populate inputs
-            const iName = document.getElementById('input-name');
-            const iMsg = document.getElementById('input-msg');
-            const iMe = document.getElementById('input-me');
-            if (iName) iName.value = userConfig.targetName;
-            if (iMsg) iMsg.value = userConfig.msg;
-            if (iMe) iMe.value = userConfig.me;
-
-            // Populate Radio & Slider
-            const radios = document.getElementsByName('immersive-mode');
-            for (let r of radios) {
-                if (r.value === userConfig.immersiveMode) r.checked = true;
-            }
-
-            const iBright = document.getElementById('input-brightness');
-            if (iBright) {
-                iBright.value = Math.round(userConfig.cameraBrightness * 100);
-                document.getElementById('brightness-val').innerText = iBright.value + '%';
-            }
-            toggleBrightnessSlider(); // Init visibility
         }
 
         function saveSettings() {
-            const iName = document.getElementById('input-name');
-            const iMsg = document.getElementById('input-msg');
-            const iMe = document.getElementById('input-me');
-
-            if (iName && iName.value.trim()) userConfig.targetName = iName.value.trim();
-            if (iMsg && iMsg.value.trim()) userConfig.msg = iMsg.value.trim();
-            if (iMe && iMe.value.trim()) userConfig.me = iMe.value.trim();
-
-            const radios = document.getElementsByName('immersive-mode');
-            let selectedMode = 'black';
-            for (let r of radios) {
-                if (r.checked) selectedMode = r.value;
-            }
-            userConfig.immersiveMode = selectedMode;
-
-            const iBright = document.getElementById('input-brightness');
-            if (iBright) {
-                userConfig.cameraBrightness = parseInt(iBright.value) / 100.0;
-            }
-
-            localStorage.setItem('ar_particle_config', JSON.stringify(userConfig));
-            applyBackgroundMode(); // Apply immediately
+            // No inputs to save in simplified version
             closeModal('settings-modal');
-
-            // Force refresh if currently showing text
-            if (currentModel === 'gesture3' || currentModel === 'gesture2' || currentModel === 'gesture1') {
-                targetPositions = Models[currentModel](CONFIG.particleCount);
-            }
-
             updateStatus('✅ 配置已保存', true);
-            setTimeout(() => updateStatus('🎥 AR模式就绪', true), 2000);
         }
 
+        // Open Settings
         function openSettings() {
-            loadConfig(); // Reload to ensure inputs match current config
             document.getElementById('settings-modal').classList.add('show');
         }
 
-        function toggleEffectsPanel() {
-            const panel = document.getElementById('effects-dropdown');
-            panel.classList.toggle('show');
-        }
-
-        function selectManualEffect(modelName) {
-            // 1. Change Model
-            changeModel(modelName);
-
-            // 2. Auto Lock (Force Lock)
-            toggleGestureLock(true);
-
-            // 3. Update Status Text manually
-            let label = "";
-            if (modelName === 'idle') label = "🌌 满天星";
-            else if (modelName === 'tree') label = "🎄 圣诞树";
-            else if (modelName === 'heart') label = "❤️ 爱心";
-            else if (modelName === 'gesture1') label = "☝️ " + userConfig.msg;
-            else if (modelName === 'gesture2') label = "✌️ " + userConfig.me;
-            else if (modelName === 'gesture3') label = "👌 " + userConfig.targetName;
-
-            updateStatus('🔒 已切换并锁定: ' + label, true);
-
-            // Special Case: Force 'active' state for Starfield (idle)
-            if (modelName === 'idle') {
-                handDepth = 2.0;
-            } else {
-                // Reset depth for others to prevent them from being too bright/large
-                handDepth = 1.0;
-            }
-
-            // Close dropdown
-            document.getElementById('effects-dropdown').classList.remove('show');
-        }
-
-        function unlockAndResume() {
-            toggleGestureLock(false);
-            document.getElementById('effects-dropdown').classList.remove('show');
-        }
-
-        function openHelp() {
-            document.getElementById('help-modal').classList.add('show');
-        }
-
-        function toggleBrightnessSlider() {
-            const radios = document.getElementsByName('immersive-mode');
-            let isCamera = false;
-            for (let r of radios) {
-                if (r.checked && r.value === 'camera') isCamera = true;
-            }
-            const slider = document.getElementById('brightness-control');
-            if (slider) slider.style.display = isCamera ? 'block' : 'none';
-        }
-
-        function updateBrightnessLive(val) {
-            document.getElementById('brightness-val').innerText = val + '%';
-            userConfig.cameraBrightness = parseInt(val) / 100.0;
-            // Apply if currently in camera mode
-            if (userConfig.immersiveMode === 'camera') {
-                applyBackgroundMode();
-            }
-        }
+        // Apply Background Mode (Always Camera + Tint or Black?)
+        // User asked to remove "Immersive Mode", implying a cleaner/simpler state.
+        // Let's default to a nice dark background or camera?
+        // Usually AR apps need camera.
 
         function applyBackgroundMode() {
             const video = document.getElementById('video');
             if (!video) return;
-
-            if (userConfig.immersiveMode === 'camera') {
-                document.body.classList.add('mode-camera');
-                video.style.filter = `brightness(${userConfig.cameraBrightness}) contrast(1.1)`;
-            } else {
-                document.body.classList.remove('mode-camera');
-                video.style.filter = ''; // Reset
-            }
-        }
-
-        function enterImmersive() {
-            document.body.classList.add('immersive');
-
-            // Add specific mode class
-            if (userConfig.immersiveMode === 'camera') {
-                document.body.classList.add('immersive-camera');
-                // Apply brightness dynamically
-                const video = document.getElementById('video');
-                if (video) {
-                    video.style.filter = `brightness(${userConfig.cameraBrightness}) contrast(1.1)`;
-                }
-            } else {
-                document.body.classList.add('immersive-black');
-            }
-
-            // User requested to disable actual fullscreen to prevent lag
-            /* 
-            if (document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    console.log('Fullscreen denied:', err);
-                });
-            }
-            */
-
-            updateStatus('✨ 已进入沉浸模式 (无全屏) | 双击屏幕退出', true);
-
-            // 延迟添加监听防止连点
-            setTimeout(() => {
-                window.addEventListener('dblclick', exitImmersive, { once: true });
-            }, 500);
-        }
-
-        function exitImmersive() {
-            document.body.classList.remove('immersive');
-
-            // if (document.fullscreenElement) {
-            //     document.exitFullscreen().catch(err => console.log('Exit fullscreen error:', err));
-            // }
-
-            updateStatus('🎥 已恢复控制', true);
+            // Default to standard view (Camera visible but maybe dimmed?)
+            // Keeping it simple: Camera is always visible in background.
+            // Immersive mode logic removed.
         }
 
         /* Lock Controls */
@@ -783,131 +498,6 @@
                 updateStatus('🔒 手势已锁定 (保持当前状态)', false);
             } else {
                 updateStatus('🔓 手势解锁 (恢复控制)', true);
-            }
-        }
-
-        /* Music Controls */
-        const GenerativeMusic = {
-            ctx: null,
-            isPlaying: false,
-            interval: null,
-            noteIndex: 0,
-
-            init: function () {
-                if (!this.ctx) {
-                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-            },
-
-            playNote: function (freq, time) {
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq, time);
-
-                // Bell Envelope
-                gain.gain.setValueAtTime(0, time);
-                gain.gain.linearRampToValueAtTime(0.3, time + 0.05); // Attack
-                gain.gain.exponentialRampToValueAtTime(0.01, time + 1.0); // Decay
-
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-
-                osc.start(time);
-                osc.stop(time + 1.5);
-            },
-
-            play: function () {
-                this.init();
-                if (this.ctx.state === 'suspended') this.ctx.resume();
-                this.isPlaying = true;
-
-                const notes = [
-                    { f: 659.25, d: 2 }, { f: 659.25, d: 2 }, { f: 659.25, d: 4 }, // E E E
-                    { f: 659.25, d: 2 }, { f: 659.25, d: 2 }, { f: 659.25, d: 4 }, // E E E
-                    { f: 659.25, d: 2 }, { f: 783.99, d: 2 }, { f: 523.25, d: 3 }, { f: 587.33, d: 1 }, { f: 659.25, d: 8 }, // E G C D E
-                    { f: 698.46, d: 2 }, { f: 698.46, d: 2 }, { f: 698.46, d: 3 }, { f: 698.46, d: 1 }, // F F F F
-                    { f: 698.46, d: 2 }, { f: 659.25, d: 2 }, { f: 659.25, d: 2 }, { f: 659.25, d: 1 }, { f: 659.25, d: 1 }, // F E E E E
-                    { f: 659.25, d: 2 }, { f: 587.33, d: 2 }, { f: 587.33, d: 2 }, { f: 659.25, d: 2 }, { f: 587.33, d: 4 }, { f: 783.99, d: 4 } // E D D E D G
-                ];
-
-                let nextTime = this.ctx.currentTime;
-                this.noteIndex = 0;
-
-                const schedule = () => {
-                    if (!this.isPlaying) return;
-
-                    // Schedule next few notes
-                    while (nextTime < this.ctx.currentTime + 0.5) {
-                        const note = notes[this.noteIndex % notes.length];
-                        this.playNote(note.f, nextTime);
-                        nextTime += note.d * 0.25; // Speed multiplier
-                        this.noteIndex++;
-                    }
-                    this.interval = requestAnimationFrame(schedule);
-                };
-                schedule();
-            },
-
-            stop: function () {
-                this.isPlaying = false;
-                if (this.interval) cancelAnimationFrame(this.interval);
-            }
-        };
-
-        function toggleMusic() {
-            const bgm = document.getElementById('bgm');
-            const btn = document.getElementById('music-btn');
-
-            // Priority 1: User Uploaded File
-            if (bgm.src) {
-                if (bgm.paused) {
-                    GenerativeMusic.stop(); // Stop built-in if running
-                    bgm.play().then(() => {
-                        btn.innerHTML = '<span>🎵</span>';
-                        updateStatus('▶️ 播放自定义音乐', true);
-                    }).catch(e => updateStatus('❌ 播放失败', false));
-                } else {
-                    bgm.pause();
-                    btn.innerHTML = '<span>🔇</span>';
-                    updateStatus('⏸️ 音乐已暂停', true);
-                }
-                return;
-            }
-
-            // Priority 2: Built-in Procedural Music
-            if (GenerativeMusic.isPlaying) {
-                GenerativeMusic.stop();
-                btn.innerHTML = '<span>🔇</span>';
-                updateStatus('⏸️ 音乐已暂停', true);
-            } else {
-                GenerativeMusic.play();
-                btn.innerHTML = '<span>🎵</span>';
-                updateStatus('🎼 播放内置八音盒: Jingle Bells', true);
-            }
-        }
-
-        function handleMusicUpload(input) {
-            GenerativeMusic.stop(); // Stop built-in first
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                const url = URL.createObjectURL(file);
-                const bgm = document.getElementById('bgm');
-
-                bgm.src = url;
-                bgm.volume = 0.5;
-
-                const statusSpan = document.getElementById('bgm-status');
-                if (statusSpan) statusSpan.textContent = file.name.substring(0, 15) + (file.name.length > 15 ? '...' : '');
-
-                bgm.play().then(() => {
-                    document.getElementById('music-btn').innerHTML = '<span>🎵</span>';
-                    updateStatus('🎵 背景音乐已加载', true);
-                }).catch(e => {
-                    document.getElementById('music-btn').innerHTML = '<span>🔇</span>';
-                    updateStatus('✅ 音乐就绪 (点击播放)', true);
-                });
             }
         }
 
@@ -938,55 +528,7 @@
         };
 
 
-        function createTextParticles(text, count) {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const width = 600;
-            const height = 300;
-            canvas.width = width;
-            canvas.height = height;
 
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, width, height);
-            ctx.font = 'bold 120px "Microsoft YaHei", "Heiti SC", sans-serif';
-            ctx.fillStyle = '#ffffff';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(text, width / 2, height / 2);
-
-            const imageData = ctx.getImageData(0, 0, width, height);
-            const data = imageData.data;
-            const validPixels = [];
-
-            for (let y = 0; y < height; y += 3) {
-                for (let x = 0; x < width; x += 3) {
-                    const i = (y * width + x) * 4;
-                    if (data[i] > 50) {
-                        validPixels.push({
-                            x: (x - width / 2) / 80,
-                            y: -(y - height / 2) / 80
-                        });
-                    }
-                }
-            }
-
-            const positions = [];
-            for (let i = 0; i < count; i++) {
-                if (validPixels.length > 0) {
-                    const pixel = validPixels[Math.floor(Math.random() * validPixels.length)];
-                    positions.push(
-                        pixel.x + (Math.random() - 0.5) * 0.05,
-                        pixel.y + (Math.random() - 0.5) * 0.05,
-                        (Math.random() - 0.5) * 0.2
-                    );
-                } else {
-                    const theta = Math.random() * Math.PI * 2;
-                    const r = 2 * Math.random();
-                    positions.push(r * Math.cos(theta), r * Math.sin(theta), (Math.random() - 0.5) * 0.5);
-                }
-            }
-            return new Float32Array(positions);
-        }
 
         const Models = {
             idle: (count) => {
@@ -1000,24 +542,7 @@
                 }
                 return new Float32Array(positions);
             },
-            heart: (count) => {
-                const positions = [];
-                for (let i = 0; i < count; i++) {
-                    const t = Math.random() * Math.PI * 2;
-                    const r = Math.pow(Math.random(), 0.5);
-                    const depth = (Math.random() - 0.5);
-                    const heartX = 16 * Math.pow(Math.sin(t), 3);
-                    const heartY = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
-                    const scale = 0.08;
-                    const thicknessScale = 0.8;
-                    positions.push(
-                        heartX * r * scale,
-                        heartY * r * scale,
-                        depth * thicknessScale * (1 - r * 0.3)
-                    );
-                }
-                return new Float32Array(positions);
-            },
+
             tree: (count) => {
                 const positions = [];
                 const trunkCount = Math.floor(count * 0.04);
@@ -1103,10 +628,7 @@
                     );
                 }
                 return new Float32Array(positions);
-            },
-            gesture3: (count) => createTextParticles(userConfig.targetName, count),
-            gesture2: (count) => createTextParticles(userConfig.me, count),
-            gesture1: (count) => createTextParticles(userConfig.msg, count)
+            }
         };
 
         let scene, camera, renderer, particles;
@@ -1857,39 +1379,58 @@
         let hands;
 
         async function initMediaPipe() {
-            hands = new Hands({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`
-            });
+            // 模型加载超时检测
+            const modelLoadTimeout = setTimeout(() => {
+                console.error('MediaPipe模型加载超时（超过15秒）');
+                updateStatus('⚠️ 模型加载超时，请检查网络连接', false);
+            }, 15000);
 
-            hands.setOptions({
-                maxNumHands: 2, // Enable 2 hands
-                modelComplexity: 1,
-                minDetectionConfidence: 0.7,
-                minTrackingConfidence: 0.7
-            });
-
-            hands.onResults(onHandsResults);
-
-            const videoElement = document.getElementById('video');
             try {
+                hands = new Hands({
+                    locateFile: (file) => {
+                        const url = `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`;
+                        console.log('Loading MediaPipe file:', file, 'from', url);
+                        return url;
+                    }
+                });
+
+                hands.setOptions({
+                    maxNumHands: 2, // Enable 2 hands
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.7,
+                    minTrackingConfidence: 0.7
+                });
+
+                hands.onResults(onHandsResults);
+
+                const videoElement = document.getElementById('video');
+                updateStatus('📡 正在请求摄像头权限...', true);
+
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { width: 1280, height: 720, facingMode: 'user' }
                 });
+
                 videoElement.srcObject = stream;
                 await new Promise(resolve => videoElement.onloadedmetadata = () => {
                     videoElement.play();
                     resolve();
                 });
 
+                updateStatus('🔄 正在加载手势识别模型...', true);
+
                 async function sendFrame() {
                     await hands.send({ image: videoElement });
                     requestAnimationFrame(sendFrame);
                 }
                 sendFrame();
+
+                clearTimeout(modelLoadTimeout);
                 updateStatus('🎥 AR模式就绪 - 请展示手势', true);
             } catch (error) {
+                clearTimeout(modelLoadTimeout);
                 console.error('摄像头错误:', error);
-                updateStatus('摄像头访问失败', false);
+                updateStatus('❌ 摄像头访问失败: ' + error.message, false);
+                throw error;
             }
         }
 
@@ -1900,185 +1441,31 @@
             const dist = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
 
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                // Identify Hands
-                let leftHand = null;
-                let rightHand = null;
-
-                // MediaPipe MultiHandedness: label 'Left' means user's left hand usually.
-                // However, visual mirroring might affect perception.
-                // Let's rely on standard logic: Label 'Left' -> Left Hand, 'Right' -> Right Hand.
-                for (let i = 0; i < results.multiHandedness.length; i++) {
-                    const label = results.multiHandedness[i].label;
-                    const landmarks = results.multiHandLandmarks[i];
-                    if (label === 'Right') rightHand = landmarks;
-                    if (label === 'Left') leftHand = landmarks;
-                }
-
-                // --- Scenario 1: Dual Hand Gallery Mode ---
-                // Condition: Both hands detected AND current model is Tree (or we allow switching to it)
-                // Actually user said "When hands open, start selection". 
-                // Let's be strict: If 2 hands are visible, we enter "Photo Selection Mode" overlay.
-
-                if (leftHand && rightHand) {
-                    isDualHandMode = true;
-                    // 双手模式
-                    let statusText = "👐 双手模式 | ↔️ 控制手距以滑动 | ✊ 握拳展示";
-
-                    const lPalm = leftHand[9];
-                    const rPalm = rightHand[9];
-
-                    // 1. Left Hand: Speed Control (Based on distance from Right Hand)
-                    // Logic: Expand -> Scroll Left / Shrink -> Scroll Right
-                    const separation = Math.abs(lPalm.x - rPalm.x);
-
-                    let speed = 0;
-                    const minSep = 0.25;
-                    const maxSep = 0.55;
-
-                    // Left Hand Fist Detection for Acceleration
-                    const lWrist = leftHand[0];
-                    const distCheck = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
-                    const isLExtended = (tipIdx, pipIdx) => distCheck(leftHand[tipIdx], lWrist) > distCheck(leftHand[pipIdx], lWrist) * 1.1;
-
-                    let lFingersOpen = 0;
-                    if (isLExtended(8, 6)) lFingersOpen++;
-                    if (isLExtended(12, 10)) lFingersOpen++;
-                    if (isLExtended(16, 14)) lFingersOpen++;
-                    if (isLExtended(20, 18)) lFingersOpen++;
-
-                    // If Left Fist (<=1 finger open), Turbo Boost!
-                    const isLeftFist = lFingersOpen <= 1;
-                    const speedMultiplier = isLeftFist ? 4.0 : 1.0; // 4倍速
-
-                    if (isLeftFist) statusText = "⚡ 左手握拳加速中! ⚡";
-
-                    if (separation < minSep) {
-                        // Hands close
-                        speed = 0.04 * speedMultiplier * ((minSep - separation) / 0.15);
-                    } else if (separation > maxSep) {
-                        // Hands far
-                        speed = -0.04 * speedMultiplier * ((separation - maxSep) / 0.15);
-                    }
-
-                    galleryScroll += speed;
-
-                    // Soft Clamp Removed for Infinite Scroll
-                    // const maxScroll = floatingImages.length - 1;
-                    // if (galleryScroll < -0.5) galleryScroll = -0.5;
-                    // if (galleryScroll > maxScroll + 0.5) galleryScroll = maxScroll + 0.5;
-
-                    // 2. Right Hand: Selection & Zoom
-                    const rX = -(rPalm.x - 0.5) * 4;
-                    // Detect Right Fist
-                    const rWrist = rightHand[0];
-                    const dist = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
-                    const isRExtended = (tipIdx, pipIdx) => dist(rightHand[tipIdx], rWrist) > dist(rightHand[pipIdx], rWrist) * 1.1;
-
-                    let rFingersOpen = 0;
-                    if (isRExtended(8, 6)) rFingersOpen++;
-                    if (isRExtended(12, 10)) rFingersOpen++;
-                    if (isRExtended(16, 14)) rFingersOpen++;
-                    if (isRExtended(20, 18)) rFingersOpen++;
-                    const isRightFist = rFingersOpen <= 1;
-
-                    let selectedIdx = -1;
-
-                    if (isRightFist && lastSelectedIdx !== -1) {
-                        selectedIdx = lastSelectedIdx;
-                        statusText = "✨ 正在展示图片 ✨";
-                    } else {
-                        // New Selection Logic for Infinite Scroll
-                        // Find the image whose "wrapped index" is closest to 0
-                        const total = floatingImages.length;
-                        selectedIdx = -1;
-                        let minDiff = 100;
-
-                        for (let i = 0; i < total; i++) {
-                            // Calculate wrapped relative index exactly as in updateFloatingImages
-                            let relIdx = i - galleryScroll;
-                            relIdx = relIdx - total * Math.round(relIdx / total);
-
-                            // If this image is effectively "in the center" (relIdx close to 0)
-                            if (Math.abs(relIdx) < 0.5 && Math.abs(relIdx) < minDiff) {
-                                minDiff = Math.abs(relIdx);
-                                selectedIdx = i;
-                            }
-                        }
-
-                        if (selectedIdx !== -1) lastSelectedIdx = selectedIdx;
-                        else lastSelectedIdx = -1;
-                    }
-
-                    // Apply States
-                    floatingImages.forEach((img, i) => {
-                        img.userData.isSelected = (i === selectedIdx);
-                        img.userData.isZoomed = (i === selectedIdx && isRightFist);
-                    });
-
-                    if (currentModel !== 'tree') changeModel('tree');
-
-                    updateStatus(statusText, true);
-                    return; // Skip single hand logic
-                }
-
-                // Reset Dual Mode states if hands lost
-                isDualHandMode = false;
-                if (floatingImages) {
-                    floatingImages.forEach(img => {
-                        img.userData.isSelected = false;
-                        img.userData.isZoomed = false;
-                    });
-                }
-
-                isDualHandMode = false; // Reset if single hand
-
-
-                // --- Scenario 2: Single Hand Logic (Fallback/Original) ---
-                // Use the first detected hand (or whichever is dominant/detected).
+                // Determine which hand is which (Optional for Lite, just use first detected)
                 const landmarks = results.multiHandLandmarks[0];
 
                 const palm = landmarks[9];
                 const newX = -(palm.x - 0.5) * 4;
                 const newY = -(palm.y - 0.5) * 3;
 
+                // Update Hand Position & Cursor
+                handPosition.y = newY;
+                cursorTarget.x = newX;
+                cursorTarget.y = newY;
+
+                // Determine Hand Depth (Width)
                 const thumbTip = landmarks[4];
                 const pinkyTip = landmarks[20];
                 const handWidth = Math.sqrt(
                     Math.pow(thumbTip.x - pinkyTip.x, 2) +
                     Math.pow(thumbTip.y - pinkyTip.y, 2)
                 );
-
                 targetDepth = Math.max(0.5, Math.min(2.0, handWidth * 4));
                 handDepth += (targetDepth - handDepth) * 0.1;
 
-                handPosition.y = newY;
-
-                // Keep cursorTarget synced with palm by default
-                cursorTarget.x = newX;
-                cursorTarget.y = newY;
-
-                const indexTip = landmarks[8];
-                const thumbTip4 = landmarks[4];
-
-                // Pinch Center
-                const pinchCenterX = (indexTip.x + thumbTip4.x) / 2;
-                const pinchCenterY = (indexTip.y + thumbTip4.y) / 2;
-                const interactionX = -(pinchCenterX - 0.5) * 4;
-                const interactionY = -(pinchCenterY - 0.5) * 3;
-                // Update cursor target
-                cursorTarget.x = interactionX;
-                cursorTarget.y = interactionY;
-
-                // --- Single Hand Image Interaction Removed ---
-                // User requested to remove single hand selection.
-                // We keep 'interactingImage' variable as null to avoid breaking later checks if any,
-                // but effectively disable the logic.
-
-                let interactingImage = null;
-
+                // Gesture Recognition
                 const wrist = landmarks[0];
                 const palmScale = dist(landmarks[0], landmarks[9]);
-
                 const isExtended = (tipIdx, pipIdx) => dist(landmarks[tipIdx], wrist) > dist(landmarks[pipIdx], wrist) * 1.05;
                 const isThumbExtended = dist(landmarks[4], landmarks[17]) > palmScale * 1.2 && dist(landmarks[4], landmarks[5]) > palmScale * 0.3;
 
@@ -2089,75 +1476,16 @@
 
                 const extendedCount = [isIndexExt, isMiddleExt, isRingExt, isPinkyExt].filter(Boolean).length;
 
-                const pinchDist = dist(landmarks[4], landmarks[8]);
-                const isPinch = pinchDist < palmScale * 0.25;
-
-                const isCurled = (tipIdx, pipIdx) => dist(landmarks[tipIdx], wrist) < dist(landmarks[pipIdx], wrist) * 1.35;
-
                 let detectedGesture = 'idle';
-                let statusText = "🖐️ 散开";
-                let newRomanticMode = isRomanticMode;
+                let statusText = "🖐️ 满天星";
 
-                if (isPinch) {
-                    if (isMiddleExt && isRingExt && isPinkyExt) {
-                        detectedGesture = 'gesture3';
-                        newRomanticMode = false;
-                        statusText = "👌 " + userConfig.targetName;
-                    } else if (!isMiddleExt && !isRingExt && !isPinkyExt) {
-                        // 逻辑整合：其余三指不是伸直状态（即卷曲或微屈）
-                        // 此时可能是：比心 (Heart) 或 圣诞树 (Tree/Fist)
-
-                        // 用户严格要求：爱心必须食指和拇指都伸直 (Extended)
-                        if (isIndexExt && isThumbExtended) {
-                            detectedGesture = 'heart';
-                            newRomanticMode = true;
-                            statusText = "❤️ 爱心";
-                        } else {
-                            // 否则判定为握拳/圣诞树
-                            detectedGesture = 'tree';
-                            newRomanticMode = true;
-                            statusText = "✊ 🎄💰 圣诞树";
-                        }
-                    } else {
-                        detectedGesture = lastDetectedGesture;
-                        statusText = "调整中...";
-                    }
+                // Lite Logic: Fist = Tree, Anything else = Starfield
+                if (extendedCount <= 1 && !isThumbExtended) {
+                    detectedGesture = 'tree';
+                    statusText = "✊ 圣诞树";
                 } else {
-                    const isOneFinger = isIndexExt && !isMiddleExt && !isRingExt && !isPinkyExt;
-                    const isVictory = isIndexExt && isMiddleExt && isCurled(16, 14) && isCurled(20, 18);
-
-                    // 修复：比心(手指爱心)容易被识别为"永远爱你"(单指)
-                    // 逻辑优化：明确区分“接触”和“未接触”
-                    const thumbIndexDist = dist(landmarks[4], landmarks[8]);
-                    const isTouching = thumbIndexDist < palmScale * 0.35;
-
-                    const isLooseHeart = isOneFinger && isTouching; // 接触 -> 爱心
-                    const isStrictGesture1 = isOneFinger && !isTouching; // 未接触 -> 永远爱你
-
-                    if (extendedCount === 0 && !isThumbExtended) {
-                        detectedGesture = 'tree';
-                        newRomanticMode = true;
-                        statusText = "✊ 🎄💰 圣诞树";
-                    } else if (isLooseHeart) {
-                        detectedGesture = 'heart';
-                        newRomanticMode = true;
-                        statusText = "❤️ 爱心";
-                    } else if (isStrictGesture1) {
-                        detectedGesture = 'gesture1';
-                        newRomanticMode = true;
-                        statusText = "☝️ " + userConfig.msg;
-                    } else if (isVictory) {
-                        detectedGesture = 'gesture2';
-                        newRomanticMode = false;
-                        statusText = "✌️ " + userConfig.me;
-                    } else if (extendedCount >= 4) {
-                        detectedGesture = 'idle';
-                        newRomanticMode = false;
-                        statusText = "🖐️ 散开";
-                    } else {
-                        detectedGesture = lastDetectedGesture;
-                        statusText = "🖐️ " + (lastDetectedGesture === 'idle' ? "散开" : "保持...");
-                    }
+                    detectedGesture = 'idle';
+                    statusText = "🖐️ 满天星";
                 }
 
                 // Debounce
@@ -2173,14 +1501,17 @@
                     gestureStableCounter = 0;
                 }
 
-                isRomanticMode = newRomanticMode;
+                isRomanticMode = false;
 
+                // Pass depth for Starfield/Memory effect
                 const depthPercent = Math.round(handDepth * 100);
                 updateStatus(statusText + ` [${depthPercent}%]`, true);
+
             } else {
                 updateStatus('🔒 保持当前状态', false);
             }
         }
+
 
         function updateStatus(text, isActive) {
             const el = document.getElementById('status-text');
@@ -2261,6 +1592,14 @@
 
         async function init() {
             try {
+                // 检查依赖库是否加载成功
+                if (typeof THREE === 'undefined') {
+                    throw new Error('Three.js 库加载失败，请检查网络连接或使用完全离线版本');
+                }
+                if (typeof Hands === 'undefined') {
+                    throw new Error('MediaPipe 库加载失败，请检查网络连接或使用完全离线版本');
+                }
+
                 loadConfig();
                 initThreeJS();
                 await initMediaPipe();
@@ -2272,6 +1611,18 @@
                 animate();
             } catch (error) {
                 console.error('初始化失败:', error);
+                const loading = document.getElementById('loading');
+                if (loading) {
+                    loading.innerHTML = `
+                        <div class="loading-spinner" style="border-top-color: #ef4444;"></div>
+                        <div class="loading-text" style="color: #ef4444; max-width: 500px; text-align: center;">
+                            ❌ 初始化失败<br>
+                            <span style="font-size: 14px; color: rgba(255,255,255,0.7); margin-top: 10px; display: block;">
+                                ${error.message}
+                            </span>
+                        </div>
+                    `;
+                }
             }
         }
 
