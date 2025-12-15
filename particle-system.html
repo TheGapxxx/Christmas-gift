@@ -346,8 +346,8 @@
     </div>
 
     <div class="top-controls">
-        <button class="icon-btn" onclick="openSettings()">
-            <span>⚙️</span> 设置
+        <button class="icon-btn" onclick="document.getElementById('img-upload').click()">
+            <span>📂</span> 更换照片墙
         </button>
     </div>
 
@@ -363,31 +363,7 @@
         <span id="status-text">初始化中...</span>
     </div>
 
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="modal-title">个性化定制</div>
-                <button class="close-btn" onclick="closeModal('settings-modal')">&times;</button>
-            </div>
 
-            <div style="margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <button class="btn-primary" onclick="document.getElementById('img-upload').click()"
-                    style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
-                    <span>📂</span> 更换照片墙
-                </button>
-                <button class="btn-primary" onclick="openHelp()"
-                    style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
-                    <span>❔</span> 查看手势帮助
-                </button>
-            </div>
-
-
-
-        </div>
-        <button class="btn-primary" onclick="saveSettings()">保存配置</button>
-    </div>
-    </div>
 
 
 
@@ -461,16 +437,7 @@
             }
         }
 
-        function saveSettings() {
-            // No inputs to save in simplified version
-            closeModal('settings-modal');
-            updateStatus('✅ 配置已保存', true);
-        }
 
-        // Open Settings
-        function openSettings() {
-            document.getElementById('settings-modal').classList.add('show');
-        }
 
         // Apply Background Mode (Always Camera + Tint or Black?)
         // User asked to remove "Immersive Mode", implying a cleaner/simpler state.
